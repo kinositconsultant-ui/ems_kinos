@@ -1,0 +1,141 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'group-list' %}">Groups &amp; Permissions</a></li>
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4">
+            <h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1>
+        </div>
+        <div class="card-body px-4">
+            <form method="post" id="group-form">
+                {% csrf_token %}
+                {% if editing %}{{ form.revision }}{% endif %}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.name.id_for_label }}">Group name</label>
+                    {{ form.name }}
+                    <div class="text-danger">{{ form.name.errors }}</div>
+                </div>
+
+                {% if editing %}
+                    <div class="mb-4">
+                        <p class="mb-2{% if form.is_business_role %} alert alert-warning{% endif %}">
+                            {% if form.is_business_role %}<strong>{{ form.original_name }} is used as a business role.</strong>{% endif %}
+                            Renaming a business role or using a name tied to one can change access, reporting scope, or request routing for group members. Existing memberships stay with the group.
+                        </p>
+                        <div class="form-check">
+                            {{ form.confirm_role_rename }}
+                            <label class="form-check-label" for="{{ form.confirm_role_rename.id_for_label }}">I confirm this business-role rename</label>
+                        </div>
+                        <div class="text-danger">{{ form.confirm_role_rename.errors }}</div>
+                    </div>
+                {% endif %}
+
+                <fieldset class="mb-4">
+                    <legend class="h5">Permissions</legend>
+                    <div class="text-danger">{{ form.permissions.errors }}</div>
+                    <div class="mb-3" id="permission-filter" hidden>
+                        <label class="form-label" for="permission-search">Search permissions</label>
+                        <input class="form-control" type="search" id="permission-search"
+                               placeholder="App, model, name or codename">
+                        <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
+                            <output id="permission-count" aria-live="polite"></output>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" id="selected-only">
+                                <label class="form-check-label" for="selected-only">Show selected only</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-auto border rounded p-3 mb-3" style="max-height: 28rem">
+                        {% for section, permissions in form.permission_sections.items %}
+                            <fieldset class="mb-3 permission-section">
+                                <legend class="h6">{{ section }}</legend>
+                                {% for permission, selected in permissions %}
+                                    <div class="form-check permission-option">
+                                        <input class="form-check-input" type="checkbox" name="permissions"
+                                               id="permission-{{ permission.pk }}" value="{{ permission.pk }}"{% if selected %} checked{% endif %}>
+                                        <label class="form-check-label" for="permission-{{ permission.pk }}">
+                                            {{ permission.name }} <code>{{ permission.codename }}</code>
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </fieldset>
+                        {% endfor %}
+                        <p id="no-matching-permissions" class="mb-0 text-body-secondary" hidden>No matching permissions.</p>
+                    </div>
+                    <div class="form-check">
+                        {{ form.empty_permissions }}
+                        <label class="form-check-label" for="{{ form.empty_permissions.id_for_label }}">
+                            {% if editing %}Clear all permissions{% else %}Create without permissions{% endif %}
+                        </label>
+                    </div>
+                </fieldset>
+
+                <button class="btn btn-primary" type="submit">Save</button>
+                <a class="btn btn-outline-secondary" href="{{ back_url }}">Cancel</a>
+            </form>
+        </div>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        (() => {
+            const form = document.getElementById('group-form');
+            const search = document.getElementById('permission-search');
+            const selectedOnly = document.getElementById('selected-only');
+            const empty = form.elements.empty_permissions;
+            const count = document.getElementById('permission-count');
+            const noMatches = document.getElementById('no-matching-permissions');
+            const sections = Array.from(form.querySelectorAll('.permission-section'), section => ({
+                section,
+                options: Array.from(section.querySelectorAll('.permission-option'), row => ({
+                    row,
+                    checkbox: row.querySelector('input'),
+                    text: (section.querySelector('legend').textContent + ' ' + row.textContent).toLowerCase(),
+                })),
+            }));
+
+            function updatePermissions() {
+                const terms = search.value.toLowerCase().trim().split(/\s+/);
+                let selected = 0;
+                let visible = 0;
+                for (const {section, options} of sections) {
+                    for (const {row, checkbox, text} of options) {
+                        selected += Number(checkbox.checked);
+                        row.hidden = (selectedOnly.checked && !checkbox.checked) ||
+                            !terms.every(term => text.includes(term));
+                        visible += Number(!row.hidden);
+                    }
+                    section.hidden = options.every(({row}) => row.hidden);
+                }
+                count.textContent = selected + ' selected';
+                noMatches.hidden = visible > 0;
+            }
+
+            search.addEventListener('input', updatePermissions);
+            form.addEventListener('change', event => {
+                if (event.target === empty && empty.checked) {
+                    for (const checkbox of form.querySelectorAll('[name="permissions"]:checked')) {
+                        checkbox.checked = false;
+                    }
+                } else if (event.target.name === 'permissions' && event.target.checked) {
+                    empty.checked = false;
+                }
+                updatePermissions();
+            });
+            document.getElementById('permission-filter').hidden = false;
+            updatePermissions();
+        })();
+    </script>
+{% endblock %}

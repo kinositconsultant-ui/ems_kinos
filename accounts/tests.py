@@ -1,9 +1,162 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.test import TestCase
+from django.db import IntegrityError
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from audittrail.models import AuditLog
+
+
+class GroupManagementTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        users = get_user_model().objects
+        cls.admin = users.create_user(username="super", is_superuser=True)
+        cls.member = users.create_user(username="member", is_staff=True)
+        cls.group = Group.objects.create(name="Test access")
+        cls.group.user_set.add(cls.member)
+        cls.view = Permission.objects.get(content_type__app_label="auth", codename="view_group")
+        cls.add = Permission.objects.get(content_type__app_label="auth", codename="add_group")
+        cls.change = Permission.objects.get(content_type__app_label="auth", codename="change_group")
+        cls.group.permissions.add(cls.view)
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+        self.detail = reverse("group-detail", args=[self.group.pk])
+        self.edit = reverse("group-update", args=[self.group.pk])
+        self.create = reverse("group-create")
+
+    def revision(self, url=None):
+        return self.client.get(url or self.edit).context["form"]["revision"].value()
+
+    def test_access_and_sidebar(self):
+        self.assertContains(self.client.get(reverse("group-list"), {"q": "Test"}), self.create)
+        self.assertContains(self.client.get(self.detail), self.edit)
+        self.assertContains(self.client.get(self.create), "Add Group")
+        self.assertContains(self.client.get(self.edit), "Edit Group")
+        self.member.groups.add(Group.objects.get_or_create(name="IT Admin")[0])
+        self.member.user_permissions.add(self.add, self.change)
+        for actor in (None, self.member, get_user_model().objects.create_user(
+            username="inactive", is_superuser=True, is_active=False,
+        )):
+            self.client.logout()
+            if actor:
+                self.client.force_login(actor)
+            for url in (reverse("group-list"), self.detail, self.create, self.edit):
+                with self.subTest(actor=actor, url=url):
+                    self.assertEqual(self.client.get(url).status_code, 403)
+                    self.assertEqual(self.client.post(url, {"name": "Denied"}).status_code, 403)
+        self.client.force_login(self.member)
+        self.assertNotContains(self.client.get(reverse("dashboard")), 'href="/groups/"')
+        self.assertFalse(AuditLog.objects.filter(entity_type="Group").exists())
+
+    def test_csrf(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.admin)
+        self.assertEqual(client.post(self.create, {"name": "Missing CSRF"}).status_code, 403)
+        response = client.get(self.create)
+        self.assertRedirects(
+            client.post(self.create, {
+                "name": "Valid CSRF", "empty_permissions": "on",
+                "csrfmiddlewaretoken": response.cookies["csrftoken"].value,
+            }),
+            reverse("group-detail", args=[Group.objects.order_by("-pk").first().pk]),
+        )
+
+    def test_create_with_permissions_and_create_empty(self):
+        count = Permission.objects.count()
+        for name, fields in (
+            ("Selected", {"permissions": [self.view.pk, self.add.pk]}),
+            ("Empty", {"empty_permissions": "on"}),
+        ):
+            response = self.client.post(self.create, {"name": name, **fields})
+            group = Group.objects.get(name=name)
+            self.assertRedirects(response, reverse("group-detail", args=[group.pk]))
+            self.assertCountEqual(group.permissions.values_list("pk", flat=True), fields.get("permissions", []))
+            audit = AuditLog.objects.get(entity_type="Group", object_id=str(group.pk))
+            self.assertEqual(audit.actor_user, self.admin)
+            self.assertEqual(audit.action, AuditLog.Action.CREATE)
+            self.assertEqual(audit.after_data["name"], name)
+        self.assertEqual(Permission.objects.count(), count)
+
+    def test_edit_updates_effective_permissions_and_preserves_membership(self):
+        response = self.client.get(self.edit)
+        self.assertContains(response, f'id="permission-{self.view.pk}" value="{self.view.pk}" checked')
+        self.assertEqual(response.context["form"]["name"].value(), self.group.name)
+        self.assertTrue(get_user_model().objects.get(pk=self.member.pk).has_perm("auth.view_group"))
+        response = self.client.post(self.edit, {
+            "name": "Renamed", "permissions": [self.add.pk], "revision": self.revision(),
+        })
+        self.assertRedirects(response, self.detail)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, "Renamed")
+        member = get_user_model().objects.get(pk=self.member.pk)
+        self.assertTrue(member.groups.filter(pk=self.group.pk).exists())
+        self.assertTrue(member.has_perm("auth.add_group"))
+        self.assertFalse(member.has_perm("auth.view_group"))
+        audit = AuditLog.objects.get(entity_type="Group", object_id=str(self.group.pk))
+        self.assertEqual(audit.action, AuditLog.Action.UPDATE)
+        self.assertEqual(audit.before_data, {"name": "Test access"})
+        self.assertEqual(audit.after_data, {
+            "name": "Renamed", "added_permissions": ["auth.group.add_group"],
+            "removed_permissions": ["auth.group.view_group"],
+        })
+        self.assertRedirects(self.client.post(self.edit, {
+            "name": "Renamed", "empty_permissions": "on", "revision": self.revision(),
+        }), self.detail)
+        self.assertFalse(self.group.permissions.exists())
+        self.assertRedirects(self.client.post(self.edit, {
+            "name": "Renamed", "empty_permissions": "on", "revision": self.revision(),
+        }), self.detail)
+        self.assertEqual(AuditLog.objects.filter(entity_type="Group").count(), 2)
+
+    def test_invalid_submissions_preserve_selection_and_database(self):
+        for name in (self.group.name, "", "a" * 151):
+            response = self.client.post(self.create, {"name": name, "permissions": [self.add.pk]})
+            self.assertTrue(response.context["form"].has_error("name"))
+            self.assertContains(response, f'id="permission-{self.add.pk}" value="{self.add.pk}" checked')
+        for fields in ({}, {"empty_permissions": "invalid"},
+                       {"permissions": ["invalid"]}, {"permissions": [99999999]},
+                       {"permissions": [self.add.pk], "empty_permissions": "on"}):
+            response = self.client.post(self.edit, {"name": "Unsaved", "revision": self.revision(), **fields})
+            self.assertTrue(response.context["form"].has_error("permissions"))
+            self.assertEqual(response.context["form"]["name"].value(), "Unsaved")
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, "Test access")
+        self.assertCountEqual(self.group.permissions.all(), [self.view])
+        self.assertFalse(AuditLog.objects.filter(entity_type="Group").exists())
+
+    def test_business_role_rename_requires_confirmation(self):
+        role, _ = Group.objects.get_or_create(name="Director")
+        edit = reverse("group-update", args=[role.pk])
+        self.assertContains(self.client.get(edit), "Director is used as a business role.")
+        data = {"name": "Retired role", "permissions": [self.add.pk], "revision": self.revision(edit)}
+        response = self.client.post(edit, data)
+        self.assertTrue(response.context["form"].has_error("confirm_role_rename"))
+        role.refresh_from_db()
+        self.assertEqual(role.name, "Director")
+        self.assertRedirects(
+            self.client.post(edit, {**data, "confirm_role_rename": "on"}),
+            reverse("group-detail", args=[role.pk]),
+        )
+        role.refresh_from_db()
+        self.assertEqual(role.name, "Retired role")
+
+    def test_stale_edit_and_audit_failure_do_not_write(self):
+        old_revision = self.revision()
+        self.group.permissions.add(self.change)
+        data = {"name": "Unsaved", "permissions": [self.add.pk], "revision": old_revision}
+        self.assertContains(self.client.post(self.edit, data), "This edit is out of date")
+        with patch("accounts.views.log_action", side_effect=IntegrityError("audit failure")):
+            with self.assertLogs("accounts.views", level="ERROR"):
+                self.assertContains(self.client.post(self.edit, {**data, "revision": self.revision()}),
+                                    "The group could not be saved")
+                self.assertContains(self.client.post(self.create, data), "The group could not be saved")
+        self.assertFalse(Group.objects.filter(name="Unsaved").exists())
+        self.assertCountEqual(self.group.permissions.all(), [self.view, self.change])
+        self.assertFalse(AuditLog.objects.filter(entity_type="Group").exists())
 
 
 class SystemLoginTests(TestCase):

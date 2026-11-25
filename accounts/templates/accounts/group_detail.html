@@ -17,9 +17,12 @@
                         Group permissions detail.
                     </p>
                 </div>
-                <a class="btn btn-outline-secondary" href="{% url 'group-list' %}">
-                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back to list
-                </a>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-outline-secondary" href="{% url 'group-list' %}">
+                        <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back to list
+                    </a>
+                    <a class="btn btn-primary" href="{% url 'group-update' group.pk %}">Edit</a>
+                </div>
             </div>
         </div>
         <div class="card-body px-4">

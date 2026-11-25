@@ -1,7 +1,10 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
 
-from .views import GroupDetailView, GroupListView, SystemLoginView, UserCreateView, UserDeactivateView, UserListView, UserUpdateView
+from .views import (
+    GroupDetailView, GroupFormView, GroupListView, SystemLoginView,
+    UserCreateView, UserDeactivateView, UserListView, UserUpdateView,
+)
 
 urlpatterns = [
     path('login/', SystemLoginView.as_view(), name='login'),
@@ -11,5 +14,7 @@ urlpatterns = [
     path('users/<int:pk>/edit/', UserUpdateView.as_view(), name='user-update'),
     path('users/<int:pk>/deactivate/', UserDeactivateView.as_view(), name='user-deactivate'),
     path('groups/', GroupListView.as_view(), name='group-list'),
+    path('groups/new/', GroupFormView.as_view(), name='group-create'),
     path('groups/<int:pk>/', GroupDetailView.as_view(), name='group-detail'),
+    path('groups/<int:pk>/edit/', GroupFormView.as_view(), name='group-update'),
 ]

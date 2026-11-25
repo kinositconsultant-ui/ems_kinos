@@ -14,6 +14,12 @@ from pathlib import Path
 
 import environ
 
+
+def _menu_can_manage_groups(request):
+    from core.permissions import can_manage_groups
+    return can_manage_groups(request.user)
+
+
 def _menu_can_access_approval_inbox(request):
     from employee_requests.views import can_access_approval_inbox
     return can_access_approval_inbox(getattr(request, "user", None))
@@ -394,7 +400,7 @@ ADMINLTE = {
                     'text': 'Groups & Permissions',
                     'icon': 'bi bi-circle',
                     'route': 'group-list',
-                    'can': 'auth.view_group',
+                    'can': _menu_can_manage_groups,
                 },
             ],
         },

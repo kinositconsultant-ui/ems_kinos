@@ -1,10 +1,12 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group
 from django.contrib.auth.views import LoginView
-from django.core.exceptions import PermissionDenied
-from django.db import transaction
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import DatabaseError, transaction
 from django.db.models import Q, Count
 from django.urls import reverse, reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,10 +15,12 @@ from django.views.generic import CreateView, ListView, UpdateView
 
 from audittrail.models import AuditLog
 from audittrail.services import log_action
+from core.permissions import can_manage_groups
 
-from .forms import UserCreateForm, UserUpdateForm
+from .forms import GroupForm, UserCreateForm, UserUpdateForm
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class SystemLoginView(LoginView):
@@ -212,10 +216,11 @@ class UserDeactivateView(UserPermissionMixin, View):
         return redirect("user-list")
 
 
-class GroupPermissionMixin(LoginRequiredMixin, PermissionRequiredMixin):
-    """Base mixin for group views - requires auth.view_group permission."""
-    permission_required = "auth.view_group"
-    raise_exception = True
+class GroupPermissionMixin:
+    def dispatch(self, request, *args, **kwargs):
+        if not can_manage_groups(request.user):
+            raise PermissionDenied("Only an active superuser can manage groups.")
+        return super().dispatch(request, *args, **kwargs)
 
 
 class GroupListView(GroupPermissionMixin, ListView):
@@ -265,3 +270,80 @@ class GroupDetailView(GroupPermissionMixin, View):
             "page_title": f"Group: {group.name}",
         }
         return render(request, self.template_name, context)
+
+
+class GroupFormView(GroupPermissionMixin, View):
+    def get_form(self, pk, data=None, *, lock=False):
+        if pk is None:
+            return GroupForm(data)
+        groups = Group.objects.select_for_update() if lock else Group.objects.all()
+        group = get_object_or_404(groups, pk=pk)
+        return GroupForm(
+            data, instance=group,
+            current_permissions=group.permissions.select_related("content_type"),
+        )
+
+    def render_form(self, request, form, pk):
+        return render(request, "accounts/group_form.html", {
+            "form": form,
+            "page_title": "Edit Group" if pk is not None else "Add Group",
+            "editing": pk is not None,
+            "back_url": reverse("group-detail", args=[pk]) if pk is not None else reverse("group-list"),
+        })
+
+    def get(self, request, pk=None):
+        return self.render_form(request, self.get_form(pk), pk)
+
+    def post(self, request, pk=None):
+        form = None
+        try:
+            with transaction.atomic():
+                form = self.get_form(pk, request.POST, lock=True)
+                if form.is_valid():
+                    group, changed = self.save_group(request, form, creating=pk is None)
+                else:
+                    group = None
+        except (DatabaseError, ValidationError):
+            logger.exception("Could not save group and its audit record")
+            if form is None:
+                form = self.get_form(pk, request.POST)
+            form.add_error(None, "The group could not be saved. Reopen the form if the group changed, then try again.")
+            return self.render_form(request, form, pk)
+
+        if group is None:
+            return self.render_form(request, form, pk)
+        if changed:
+            action = "created" if pk is None else "updated"
+            messages.success(request, f'Group "{group.name}" was {action}.')
+        else:
+            messages.info(request, "No group changes to save.")
+        return redirect("group-detail", pk=group.pk)
+
+    def save_group(self, request, form, *, creating):
+        before = form.current_permissions
+        after = {permission.pk: permission for permission in form.cleaned_data["permissions"]}
+        if not creating and before.keys() == after.keys() and form.original_name == form.instance.name:
+            return form.instance, False
+
+        group = form.save()
+        log_action(
+            actor_user=request.user,
+            action=AuditLog.Action.CREATE if creating else AuditLog.Action.UPDATE,
+            entity_type="Group",
+            object_id=group.pk,
+            before_data={} if creating else {"name": form.original_name},
+            after_data={
+                "name": group.name,
+                "added_permissions": self.permission_identifiers(after, after.keys() - before.keys()),
+                "removed_permissions": self.permission_identifiers(before, before.keys() - after.keys()),
+            },
+            ip_address=request.META.get("REMOTE_ADDR"),
+        )
+        return group, True
+
+    @staticmethod
+    def permission_identifiers(permissions, ids):
+        return sorted(
+            f"{permission.content_type.app_label}.{permission.content_type.model}.{permission.codename}"
+            for permission in (permissions[pk] for pk in ids)
+        )

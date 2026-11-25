@@ -5,6 +5,12 @@ from django.db.models import Q
 HR_GROUP_NAME = "HR Office"
 MINISTRO_GROUP = "Ministro"
 VICE_GROUP = "Vice"
+
+
+def can_manage_groups(user):
+    return bool(user.is_authenticated and user.is_active and user.is_superuser)
+
+
 def is_hr_user(user):
     if not getattr(user, "is_authenticated", False):
         return False

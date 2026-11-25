@@ -1,13 +1,103 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
+from django.core import signing
 from django.db import transaction
 from django.utils.translation import override
 
+from core.permissions import (
+    DIRECTOR_GROUP, EMPLOYEE_GROUP_NAMES, HR_GROUP_NAME, IT_ADMIN_GROUP,
+    MINISTRO_GROUP, STAFF_HR_GROUP, VICE_GROUP, XEFE_GROUP,
+)
 from employees.models import Employee, UserEmployeeLink, get_linked_employee
 
 User = get_user_model()
+
+
+class GroupForm(forms.ModelForm):
+    role_names = EMPLOYEE_GROUP_NAMES | {
+        name.casefold()
+        for name in (
+            DIRECTOR_GROUP, HR_GROUP_NAME, IT_ADMIN_GROUP, MINISTRO_GROUP,
+            STAFF_HR_GROUP, VICE_GROUP, XEFE_GROUP, "direktur_utama",
+        )
+    }
+    revision_salt = "accounts.group-edit"
+    permissions = forms.ModelMultipleChoiceField(
+        queryset=Permission.objects.select_related("content_type").order_by(
+            "content_type__app_label", "content_type__model", "codename"
+        ),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+    empty_permissions = forms.BooleanField(required=False, widget=forms.CheckboxInput(
+        attrs={"class": "form-check-input"},
+    ))
+    confirm_role_rename = forms.BooleanField(required=False, widget=forms.CheckboxInput(
+        attrs={"class": "form-check-input"},
+    ))
+    revision = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    class Meta:
+        model = Group
+        fields = ("name", "permissions")
+        widgets = {"name": forms.TextInput(attrs={"class": "form-control"})}
+
+    def __init__(self, *args, current_permissions=(), **kwargs):
+        self.current_permissions = {permission.pk: permission for permission in current_permissions}
+        instance = kwargs.get("instance")
+        self.original_name = instance.name if instance else ""
+        initial = {}
+        if instance:
+            self.snapshot = [instance.pk, instance.name, sorted(self.current_permissions)]
+            initial["revision"] = signing.dumps(self.snapshot, salt=self.revision_salt)
+            initial["empty_permissions"] = not self.current_permissions
+        super().__init__(*args, initial=initial, **kwargs)
+
+    @property
+    def is_business_role(self):
+        return self.original_name.strip().casefold() in self.role_names
+
+    @property
+    def permission_sections(self):
+        selected = {str(pk) for pk in self["permissions"].value() or []}
+        sections = {}
+        for permission in self.fields["permissions"].queryset:
+            ct = permission.content_type
+            sections.setdefault(f"{ct.app_label} / {ct.model}", []).append(
+                (permission, str(permission.pk) in selected)
+            )
+        return sections
+
+    def clean(self):
+        cleaned = super().clean()
+        permissions = cleaned.get("permissions")
+        empty = self.data.get("empty_permissions")
+        if permissions is not None and (
+            empty not in (None, "on") or bool(permissions) == (empty == "on")
+        ):
+            self.add_error(
+                "permissions",
+                "Select permissions or confirm that this group should have no permissions.",
+            )
+
+        if self.instance.pk:
+            try:
+                submitted = signing.loads(cleaned.get("revision", ""), salt=self.revision_salt)
+            except signing.BadSignature:
+                submitted = None
+            if submitted != self.snapshot:
+                self.add_error(None, "This edit is out of date or incomplete. Reopen Edit to load the latest group.")
+
+            name = cleaned.get("name")
+            if (
+                name and name != self.original_name
+                and (self.is_business_role or name.strip().casefold() in self.role_names)
+                and self.data.get("confirm_role_rename") != "on"
+            ):
+                self.add_error("confirm_role_rename", "Confirm the effect of renaming a business role.")
+        return cleaned
 
 
 class EmployeeProfileChoiceField(forms.ModelChoiceField):
