@@ -1,0 +1,11 @@
+/* Add / Edit Employee page. */
+.employee-form-accordion .accordion-button { font-weight: 600; padding-top: 0.6rem; padding-bottom: 0.6rem; }
+.employee-form-accordion .accordion-body { padding: 0.9rem 1rem; }
+.employee-form-accordion .form-label { font-size: 0.8rem; margin-bottom: 0.15rem; color: var(--bs-secondary-color); }
+.employee-form-accordion .form-text { font-size: 0.72rem; margin-top: 0.1rem; }
+.employee-form-accordion .invalid-feedback { font-size: 0.78rem; }
+.certificate-item { background: var(--bs-tertiary-bg); }
+.employee-preview-card .card-body { padding: 0.75rem; }
+@media (min-width: 1200px) {
+    .employee-preview-sticky { position: sticky; top: 1rem; }
+}

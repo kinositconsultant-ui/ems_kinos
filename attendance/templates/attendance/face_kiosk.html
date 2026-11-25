@@ -1,0 +1,296 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4">
+            <h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1>
+            <p class="text-body-secondary mb-0">Attendance identity is determined by the server-side face match.</p>
+        </div>
+        <div class="card-body px-4">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="fw-semibold">Face engine</div>
+                        <div class="{% if engine_status.available %}text-success{% else %}text-danger{% endif %}">
+                            {% if engine_status.available %}Available{% else %}Unavailable{% endif %}
+                        </div>
+                        <div class="small text-body-secondary">YuNet + SFace · {{ model_version }}</div>
+                        {% if engine_status.error %}<div class="small text-danger mt-1">{{ engine_status.error }}</div>{% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="fw-semibold">Template encryption</div>
+                        <div class="{% if encryption_configured %}text-success{% else %}text-danger{% endif %}">
+                            {% if encryption_configured %}Configured{% else %}Unavailable{% endif %}
+                        </div>
+                        {% if encryption_error %}<div class="small text-danger mt-1">{{ encryption_error }}</div>{% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="fw-semibold">Liveness / anti-spoofing</div>
+                        <div class="{% if liveness_available %}text-warning{% else %}text-danger{% endif %}">
+                            {% if liveness_available %}Configured — experimental, validation required{% else %}Not available{% endif %}
+                        </div>
+                        <div class="small text-body-secondary">MiniFASNetV2 passive PAD. A loaded model is not a certification; test print and screen-replay attacks before official deployment.</div>
+                        {% if liveness_status.error %}<div class="small text-danger mt-1">{{ liveness_status.error }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if not devices %}
+                <div class="alert alert-warning" role="status">No active attendance devices are configured. Ask an administrator to activate a device before using the kiosk.</div>
+            {% endif %}
+
+            <div class="row g-4">
+                <div class="col-lg-7">
+                    <div class="border rounded-3 p-3">
+                        <label class="form-label" for="attendance-device">Attendance device</label>
+                        <select class="form-select mb-3" id="attendance-device" {% if not devices %}disabled{% endif %}>
+                            {% for device in devices %}
+                                <option value="{{ device.pk }}">{{ device.device_name }} — {{ device.office.office_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <video id="camera-preview" class="w-100 rounded border bg-dark" autoplay playsinline muted style="max-height: 460px; object-fit: cover; display: none;"></video>
+                        <div id="camera-placeholder" class="text-center border rounded bg-dark text-white p-5">
+                            <i class="bi bi-camera-video fs-2" aria-hidden="true"></i>
+                            <p class="mb-0 mt-2">Camera preview will appear here.</p>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap mt-3">
+                            <button id="start-camera-btn" type="button" class="btn btn-primary" {% if not engine_status.available or not encryption_configured or not devices %}disabled{% endif %}>Start Camera</button>
+                            <button id="capture-verify-btn" type="button" class="btn btn-success" disabled>Capture &amp; Verify Attendance</button>
+                            <button id="stop-camera-btn" type="button" class="btn btn-outline-secondary" disabled>Stop Camera</button>
+                        </div>
+                        <div id="loading-indicator" class="d-none align-items-center gap-2 mt-3" role="status" aria-live="polite">
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span>Verifying face and checking the attendance schedule…</span>
+                        </div>
+                        <div id="camera-message" class="small mt-3" role="status" aria-live="polite"></div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="border rounded-3 p-3 mb-3">
+                        <div class="fw-semibold">Server time (Asia/Dili)</div>
+                        <time id="server-time" datetime="{{ server_time|date:'c' }}">{{ server_time|date:"Y-m-d H:i:s T" }}</time>
+                    </div>
+                    <div id="verification-result" class="border rounded-3 p-3" aria-live="polite">
+                        <h2 class="h6">Verification result</h2>
+                        <p id="result-message" class="text-body-secondary mb-0">Start the camera, position one face in the frame, then capture.</p>
+                        <dl id="attendance-result" class="row small mt-3 mb-0 d-none">
+                            <dt class="col-5">Employee</dt><dd class="col-7" id="result-employee"></dd>
+                            <dt class="col-5">Action recorded</dt><dd class="col-7" id="result-action"></dd>
+                            <dt class="col-5">Last event received</dt><dd class="col-7" id="result-last-event"></dd>
+                            <dt class="col-5">Next action</dt><dd class="col-7 fw-semibold" id="result-next-action"></dd>
+                            <dt class="col-5">Status</dt><dd class="col-7" id="result-status"></dd>
+                            <dt class="col-5">Check-in</dt><dd class="col-7" id="result-check-in"></dd>
+                            <dt class="col-5">Check-out</dt><dd class="col-7" id="result-check-out"></dd>
+                        </dl>
+                    </div>
+                    <div class="border rounded-3 p-3 mt-3 small">
+                        <div class="fw-semibold mb-1">Four events every working day</div>
+                        <ol class="mb-0 ps-3">
+                            <li>Check In</li><li>Break Out</li><li>Break In</li><li>Check Out</li>
+                        </ol>
+                        <div class="text-body-secondary mt-2">Just scan your face. The kiosk works out which action is next from what was already recorded; you never pick it yourself. Nothing counts until this page shows a success message from the server.</div>
+                    </div>
+                    <p class="small text-body-secondary mt-3">Captured image bytes are processed in memory for this request and are not saved as a photo.</p>
+                </div>
+            </div>
+            <form id="csrf-form" class="d-none">{% csrf_token %}</form>
+        </div>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        (() => {
+            const video = document.getElementById('camera-preview');
+            const placeholder = document.getElementById('camera-placeholder');
+            const deviceSelect = document.getElementById('attendance-device');
+            const startButton = document.getElementById('start-camera-btn');
+            const captureButton = document.getElementById('capture-verify-btn');
+            const stopButton = document.getElementById('stop-camera-btn');
+            const loading = document.getElementById('loading-indicator');
+            const cameraMessage = document.getElementById('camera-message');
+            const resultMessage = document.getElementById('result-message');
+            const resultDetails = document.getElementById('attendance-result');
+            const serverTime = document.getElementById('server-time');
+            let stream = null;
+            let cameraRequestId = 0;
+
+            function setMessage(element, message, type) {
+                element.textContent = message;
+                element.className = `small mt-3 text-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'body-secondary'}`;
+            }
+
+            function stopCamera() {
+                cameraRequestId += 1;
+                if (stream) {
+                    stream.getTracks().forEach((track) => track.stop());
+                    stream = null;
+                }
+                video.srcObject = null;
+                video.style.display = 'none';
+                placeholder.style.display = 'block';
+                startButton.disabled = false;
+                captureButton.disabled = true;
+                stopButton.disabled = true;
+            }
+
+            function cameraError(error) {
+                if (error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+                    return 'Camera access was denied. Allow camera permission in browser settings, then try again.';
+                }
+                if (error && (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError')) {
+                    return 'No camera was found. Connect or enable a camera, then try again.';
+                }
+                if (error && (error.name === 'NotReadableError' || error.name === 'TrackStartError')) {
+                    return 'The camera could not start. It may already be in use by another app or tab.';
+                }
+                return 'The camera could not start. Use HTTPS or localhost and check browser camera permissions.';
+            }
+
+            async function startCamera() {
+                if (stream) return;
+                if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setMessage(cameraMessage, 'Camera access requires a supported browser over HTTPS or localhost.', 'error');
+                    return;
+                }
+                const requestId = ++cameraRequestId;
+                startButton.disabled = true;
+                setMessage(cameraMessage, 'Requesting camera permission…', 'info');
+                try {
+                    const requestedStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'user' } },
+                        audio: false
+                    });
+                    if (requestId !== cameraRequestId) {
+                        requestedStream.getTracks().forEach((track) => track.stop());
+                        return;
+                    }
+                    stream = requestedStream;
+                    video.srcObject = stream;
+                    placeholder.style.display = 'none';
+                    video.style.display = 'block';
+                    await video.play();
+                    captureButton.disabled = false;
+                    stopButton.disabled = false;
+                    setMessage(cameraMessage, 'Camera ready. Capture one face to verify attendance.', 'success');
+                } catch (error) {
+                    if (requestId === cameraRequestId) {
+                        stopCamera();
+                        setMessage(cameraMessage, cameraError(error), 'error');
+                    }
+                }
+            }
+
+            function formatLocal(value) {
+                const parsed = new Date(value);
+                if (Number.isNaN(parsed.getTime())) return value;
+                return new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Asia/Dili', day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+                }).format(parsed);
+            }
+
+            function updateServerTime(value) {
+                if (!value) return;
+                const parsed = new Date(value);
+                if (!Number.isNaN(parsed.getTime())) {
+                    serverTime.dateTime = value;
+                    serverTime.textContent = new Intl.DateTimeFormat('en-GB', {
+                        timeZone: 'Asia/Dili',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    }).format(parsed) + ' Asia/Dili';
+                }
+            }
+
+            captureButton.addEventListener('click', async () => {
+                if (!stream || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+                    !video.videoWidth || !video.videoHeight || !deviceSelect.value) {
+                    setMessage(cameraMessage, 'Start the camera and select an active device before capturing.', 'error');
+                    return;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                if (!context) {
+                    setMessage(cameraMessage, 'The camera frame could not be prepared. Try again.', 'error');
+                    return;
+                }
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                loading.classList.remove('d-none');
+                loading.classList.add('d-flex');
+                captureButton.disabled = true;
+                resultDetails.classList.add('d-none');
+                try {
+                    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+                    if (!blob) throw new Error('The camera frame could not be encoded. Try again.');
+                    const form = document.getElementById('csrf-form');
+                    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+                    const payload = new FormData();
+                    payload.append('image', blob, 'camera-capture.jpg');
+                    payload.append('device_id', deviceSelect.value);
+                    payload.append('csrfmiddlewaretoken', csrfToken);
+                    const response = await fetch('{% url "attendance:kiosk-verify" %}', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'X-CSRFToken': csrfToken },
+                        body: payload
+                    });
+                    const data = await response.json();
+                    updateServerTime(data.server_time);
+                    resultMessage.textContent = data.message || 'The attendance request could not be completed.';
+                    resultMessage.className = data.ok ? 'text-success mb-0' : 'text-danger mb-0';
+                    if (data.ok) {
+                        document.getElementById('result-employee').textContent = `${data.employee_id} — ${data.employee_name}`;
+                        document.getElementById('result-action').textContent = data.action_label || data.action;
+                        document.getElementById('result-last-event').textContent = data.last_event_at ? formatLocal(data.last_event_at) : '—';
+                        document.getElementById('result-next-action').textContent = data.next_action_label || '—';
+                        document.getElementById('result-status').textContent = data.attendance_status;
+                        document.getElementById('result-check-in').textContent = data.check_in ? formatLocal(data.check_in) : '—';
+                        document.getElementById('result-check-out').textContent = data.check_out ? formatLocal(data.check_out) : '—';
+                        resultDetails.classList.remove('d-none');
+                        setMessage(cameraMessage, 'Verification completed.', 'success');
+                    } else {
+                        if (data.next_action_label) {
+                            resultMessage.textContent = `${resultMessage.textContent} Next action: ${data.next_action_label}.`;
+                        }
+                        setMessage(cameraMessage, data.message || 'Verification was rejected. No attendance was recorded.', 'error');
+                    }
+                } catch (error) {
+                    resultMessage.textContent = error.message || 'The request failed. No attendance was recorded.';
+                    resultMessage.className = 'text-danger mb-0';
+                    setMessage(cameraMessage, resultMessage.textContent, 'error');
+                } finally {
+                    loading.classList.add('d-none');
+                    loading.classList.remove('d-flex');
+                    captureButton.disabled = !stream;
+                }
+            });
+
+            startButton.addEventListener('click', startCamera);
+            stopButton.addEventListener('click', () => {
+                stopCamera();
+                setMessage(cameraMessage, 'Camera stopped.', 'info');
+            });
+            window.addEventListener('pagehide', stopCamera, { once: true });
+            window.addEventListener('beforeunload', stopCamera, { once: true });
+        })();
+    </script>
+{% endblock %}

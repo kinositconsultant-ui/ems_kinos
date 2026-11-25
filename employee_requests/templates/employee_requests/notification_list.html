@@ -1,0 +1,9 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item active">{{ page_title }}</li>{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm"><div class="card-header bg-transparent border-0 pt-4 px-4"><h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1><p class="text-body-secondary mb-0">Only notifications addressed to your account appear here. History is retained.</p></div><div class="card-body px-4">{% if notifications %}<div class="list-group list-group-flush">{% for row in notification_rows %}{% with item=row.item %}<div class="list-group-item px-0 d-flex flex-wrap justify-content-between align-items-center gap-3"><a class="text-decoration-none flex-grow-1" href="{% url 'employee_requests:notification-detail' item.pk %}"><strong>{{ item.title }}</strong><span class="d-block text-body-secondary small">{{ item.message|truncatechars:140 }}</span></a>    <span class="text-nowrap small text-body-secondary">{% if not item.read_at %}<span class="badge text-bg-primary">Unread</span>{% else %}<span class="badge text-bg-secondary">Read</span>{% endif %}{{ item.created_at }}</span>    <form method="post" action="{% url 'employee_requests:notification-action' item.pk row.action %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" type="submit">{% if item.read_at %}Mark unread{% else %}Mark read{% endif %}</button></form></div>{% endwith %}{% endfor %}</div>{% else %}<div class="text-center border rounded-3 p-5"><i class="bi bi-bell fs-2 text-body-secondary" aria-hidden="true"></i><h2 class="h6 mt-2">No notifications</h2></div>{% endif %}</div></section>
+{% endblock %}

@@ -1,0 +1,388 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{{ back_url }}">Shifts</a></li>
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <form method="post" novalidate id="shift-form">{% csrf_token %}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger shadow-sm" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                {% if summary_rows %}
+                    <div class="card border-primary shadow-sm mb-4">
+                        <div class="card-header bg-primary-subtle fw-semibold d-flex align-items-center">
+                            <i class="bi bi-info-circle-fill text-primary me-2"></i>Summary &mdash; preview only, not saved yet. Review and click Save.
+                        </div>
+                        <div class="card-body p-0">
+                            <dl class="row mb-0 p-3">
+                                {% for label, value in summary_rows %}
+                                    <dt class="col-sm-4 text-body-secondary py-1">{{ label }}</dt>
+                                    <dd class="col-sm-8 py-1 mb-0 fw-medium">{{ value }}</dd>
+                                {% endfor %}
+                            </dl>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Section 1: Shift Timing & Basic Details -->
+                <section class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1>
+                                <p class="text-body-secondary mb-0">Shift template defines the daily hours, break window, and grace period for attendance.</p>
+                            </div>
+                            <div>
+                                <span class="badge text-bg-light border px-2 py-1"><i class="bi bi-clock me-1"></i>Shift Template</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body px-4 pt-3">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="{{ form.office.id_for_label }}">
+                                    {{ form.office.label }}{% if form.office.field.required %}<span class="text-danger"> *</span>{% endif %}
+                                </label>
+                                {{ form.office }}
+                                {% if form.office.help_text %}<div class="form-text">{{ form.office.help_text }}</div>{% endif %}
+                                {% for error in form.office.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="{{ form.shift_code.id_for_label }}">
+                                    {{ form.shift_code.label }}{% if form.shift_code.field.required %}<span class="text-danger"> *</span>{% endif %}
+                                </label>
+                                {{ form.shift_code }}
+                                {% if form.shift_code.help_text %}<div class="form-text">{{ form.shift_code.help_text }}</div>{% endif %}
+                                {% for error in form.shift_code.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="{{ form.name.id_for_label }}">
+                                    {{ form.name.label }}{% if form.name.field.required %}<span class="text-danger"> *</span>{% endif %}
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.help_text %}<div class="form-text">{{ form.name.help_text }}</div>{% endif %}
+                                {% for error in form.name.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="{{ form.start_time.id_for_label }}">
+                                    {{ form.start_time.label }}{% if form.start_time.field.required %}<span class="text-danger"> *</span>{% endif %}
+                                </label>
+                                {{ form.start_time }}
+                                {% if form.start_time.help_text %}<div class="form-text">{{ form.start_time.help_text }}</div>{% endif %}
+                                {% for error in form.start_time.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="{{ form.break_start_time.id_for_label }}">
+                                    {{ form.break_start_time.label }}{% if form.break_start_time.field.required %}<span class="text-danger"> *</span>{% endif %}
+                                </label>
+                                {{ form.break_start_time }}
+                                {% if form.break_start_time.help_text %}<div class="form-text">{{ form.break_start_time.help_text }}</div>{% endif %}
+                                {% for error in form.break_start_time.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="{{ form.break_end_time.id_for_label }}">
+                                    {{ form.break_end_time.label }}{% if form.break_end_time.field.required %}<span class="text-danger"> *</span>{% endif %}
+                                </label>
+                                {{ form.break_end_time }}
+                                {% if form.break_end_time.help_text %}<div class="form-text">{{ form.break_end_time.help_text }}</div>{% endif %}
+                                {% for error in form.break_end_time.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="{{ form.end_time.id_for_label }}">
+                                    {{ form.end_time.label }}{% if form.end_time.field.required %}<span class="text-danger"> *</span>{% endif %}
+                                </label>
+                                {{ form.end_time }}
+                                {% if form.end_time.help_text %}<div class="form-text">{{ form.end_time.help_text }}</div>{% endif %}
+                                {% for error in form.end_time.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label" for="{{ form.grace_period_minutes.id_for_label }}">
+                                    {{ form.grace_period_minutes.label }}
+                                </label>
+                                {{ form.grace_period_minutes }}
+                                {% if form.grace_period_minutes.help_text %}<div class="form-text">{{ form.grace_period_minutes.help_text }}</div>{% endif %}
+                                {% for error in form.grace_period_minutes.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label" for="{{ form.early_checkin_window_minutes.id_for_label }}">
+                                    {{ form.early_checkin_window_minutes.label }}
+                                </label>
+                                {{ form.early_checkin_window_minutes }}
+                                {% if form.early_checkin_window_minutes.help_text %}<div class="form-text">{{ form.early_checkin_window_minutes.help_text }}</div>{% endif %}
+                                {% for error in form.early_checkin_window_minutes.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="col-12 col-md-4 d-flex align-items-center">
+                                <div class="form-check mt-3">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label fw-semibold" for="{{ form.is_active.id_for_label }}">
+                                        {{ form.is_active.label }}
+                                    </label>
+                                    <div class="form-text">Inactive shifts cannot have schedules created or generated.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 2: General Schedule (Recurring Work Schedule) -->
+                <section class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h2 class="h5 fw-semibold mb-1">
+                                    <i class="bi bi-calendar-week text-primary me-2"></i>General Schedule
+                                </h2>
+                                <p class="text-body-secondary small mb-0">
+                                    Automatically generates daily Employee Schedules for active employees up to 1 year forward. Holidays and non-working days are automatically skipped.
+                                </p>
+                            </div>
+                            <div class="form-check form-switch fs-5">
+                                {{ form.recurring_schedule_enabled }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body px-4 pt-3">
+                        <div class="form-check mb-3 d-none">
+                            <label class="form-check-label" for="{{ form.recurring_schedule_enabled.id_for_label }}">
+                                {{ form.recurring_schedule_enabled.label }}
+                            </label>
+                        </div>
+                        {% for error in form.recurring_schedule_enabled.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+
+                        <div id="general-schedule-collapse" class="mt-2">
+                            <div class="alert alert-light border py-2 mb-3">
+                                <i class="bi bi-magic text-info me-1"></i>
+                                When enabled, routine daily schedules will be generated automatically. Schedules will not be created on institutional holidays or holidays for this office.
+                            </div>
+
+                            <!-- Recurrence dates -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label" for="{{ form.recurrence_start_date.id_for_label }}">
+                                        {{ form.recurrence_start_date.label }}
+                                    </label>
+                                    {{ form.recurrence_start_date }}
+                                    {% if form.recurrence_start_date.help_text %}
+                                        <div class="form-text">{{ form.recurrence_start_date.help_text }}</div>
+                                    {% endif %}
+                                    {% for error in form.recurrence_start_date.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label" for="{{ form.recurrence_end_date.id_for_label }}">
+                                        {{ form.recurrence_end_date.label }}
+                                    </label>
+                                    {{ form.recurrence_end_date }}
+                                    {% if form.recurrence_end_date.help_text %}
+                                        <div class="form-text">{{ form.recurrence_end_date.help_text }}</div>
+                                    {% else %}
+                                        <div class="form-text">Maximum 1 year from the start date.</div>
+                                    {% endif %}
+                                    {% for error in form.recurrence_end_date.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Working Days -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold mb-0">
+                                        {{ form.working_days.label }}
+                                    </label>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-secondary" id="btn-select-weekdays">Mon–Fri</button>
+                                        <button type="button" class="btn btn-outline-secondary" id="btn-select-all-days">All 7 Days</button>
+                                        <button type="button" class="btn btn-outline-secondary" id="btn-clear-days">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="p-3 bg-light rounded border d-flex flex-wrap gap-4" id="working-days-container">
+                                    {% for checkbox in form.working_days %}
+                                        <div class="form-check">
+                                            {{ checkbox.tag }}
+                                            <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+                                                {{ checkbox.choice_label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                {% if form.working_days.help_text %}
+                                    <div class="form-text">{{ form.working_days.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.working_days.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Target Employees -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold mb-2">
+                                    {{ form.target_assignment_mode.label }}
+                                </label>
+                                <div class="p-3 bg-light rounded border mb-3">
+                                    {% for radio in form.target_assignment_mode %}
+                                        <div class="form-check mb-2">
+                                            {{ radio.tag }}
+                                            <label class="form-check-label fw-medium" for="{{ radio.id_for_label }}">
+                                                {{ radio.choice_label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                {% for error in form.target_assignment_mode.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+
+                                <div id="specific-assignments-container" class="mt-3">
+                                    <label class="form-label" for="{{ form.target_assignments.id_for_label }}">
+                                        {{ form.target_assignments.label }}
+                                    </label>
+                                    {{ form.target_assignments }}
+                                    <div class="form-text text-body-secondary mt-1">
+                                        Hold Ctrl (Windows) or Command (Mac) to select multiple employees. Only active assignments matching the selected Office are available.
+                                    </div>
+                                    <div id="assignment-filter-status" class="form-text fw-semibold text-primary mt-1"></div>
+                                    {% for error in form.target_assignments.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Footer buttons -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body px-4 py-3 d-flex justify-content-end gap-2">
+                        <a class="btn btn-outline-secondary" href="{{ back_url }}">Cancel</a>
+                        {% if show_preview %}
+                            <button class="btn btn-outline-primary" type="submit" name="action" value="preview">Preview summary</button>
+                        {% endif %}
+                        <button class="btn btn-primary" type="submit" name="action" value="save">Save Shift</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        (() => {
+            const officeSelect = document.getElementById('id_office');
+            const recurringCheckbox = document.getElementById('id_recurring_schedule_enabled');
+            const recurringCollapse = document.getElementById('general-schedule-collapse');
+            const modeRadios = document.querySelectorAll('input[name="target_assignment_mode"]');
+            const specificContainer = document.getElementById('specific-assignments-container');
+            const assignmentsSelect = document.getElementById('id_target_assignments');
+            const statusDiv = document.getElementById('assignment-filter-status');
+
+            // Toggle General Schedule fields visibility
+            function updateRecurringVisibility() {
+                if (!recurringCheckbox || !recurringCollapse) return;
+                recurringCollapse.style.display = recurringCheckbox.checked ? 'block' : 'none';
+            }
+            if (recurringCheckbox) {
+                recurringCheckbox.addEventListener('change', updateRecurringVisibility);
+                updateRecurringVisibility();
+            }
+
+            // Toggle specific assignments container
+            function updateModeVisibility() {
+                if (!specificContainer) return;
+                let selectedMode = 'all';
+                modeRadios.forEach((r) => {
+                    if (r.checked) selectedMode = r.value;
+                });
+                specificContainer.style.display = selectedMode === 'specific' ? 'block' : 'none';
+            }
+            modeRadios.forEach((r) => r.addEventListener('change', updateModeVisibility));
+            updateModeVisibility();
+
+            // Filter specific assignments by selected office
+            function filterAssignmentsByOffice() {
+                if (!officeSelect || !assignmentsSelect) return;
+                const officeVal = officeSelect.value;
+                let visibleCount = 0;
+                let totalCount = 0;
+
+                Array.from(assignmentsSelect.options).forEach((opt) => {
+                    totalCount++;
+                    const optOffice = opt.dataset.office;
+                    const matches = !officeVal || optOffice === officeVal;
+                    opt.hidden = !matches;
+                    opt.disabled = !matches;
+                    if (matches) {
+                        visibleCount++;
+                    } else if (opt.selected) {
+                        opt.selected = false;
+                    }
+                });
+
+                if (statusDiv) {
+                    if (!officeVal) {
+                        statusDiv.textContent = 'Select an office to view available employees.';
+                    } else {
+                        statusDiv.textContent = visibleCount + ' eligible employee assignment(s) found in this office.';
+                    }
+                }
+            }
+            if (officeSelect) {
+                officeSelect.addEventListener('change', filterAssignmentsByOffice);
+                filterAssignmentsByOffice();
+            }
+
+            // Quick weekday selection buttons
+            const btnWeekdays = document.getElementById('btn-select-weekdays');
+            const btnAllDays = document.getElementById('btn-select-all-days');
+            const btnClearDays = document.getElementById('btn-clear-days');
+            const workingDaysBoxes = document.querySelectorAll('#working-days-container input[type="checkbox"]');
+
+            if (btnWeekdays) {
+                btnWeekdays.addEventListener('click', () => {
+                    workingDaysBoxes.forEach((cb) => {
+                        const val = parseInt(cb.value, 10);
+                        cb.checked = (val >= 0 && val <= 4);
+                    });
+                });
+            }
+            if (btnAllDays) {
+                btnAllDays.addEventListener('click', () => {
+                    workingDaysBoxes.forEach((cb) => {
+                        cb.checked = true;
+                    });
+                });
+            }
+            if (btnClearDays) {
+                btnClearDays.addEventListener('click', () => {
+                    workingDaysBoxes.forEach((cb) => {
+                        cb.checked = false;
+                    });
+                });
+            }
+        })();
+    </script>
+{% endblock %}
+

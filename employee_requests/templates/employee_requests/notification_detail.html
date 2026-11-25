@@ -1,0 +1,9 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}Notification Detail{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'employee_requests:notification-list' %}">Notifications</a></li><li class="breadcrumb-item active">{{ object.title }}</li>{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm"><div class="card-header bg-transparent border-0 pt-4 px-4"><h1 class="h4 fw-semibold mb-1">{{ object.title }}</h1><p class="text-body-secondary mb-0">{{ object.get_notification_type_display }} · {{ object.created_at }}</p></div><div class="card-body px-4"><p>{{ object.message }}</p><dl class="row"><dt class="col-sm-4 text-body-secondary">Channel</dt><dd class="col-sm-8">{{ object.get_channel_display }}</dd><dt class="col-sm-4 text-body-secondary">Delivery status</dt><dd class="col-sm-8">{{ object.get_delivery_status_display }}</dd><dt class="col-sm-4 text-body-secondary">Sent at</dt><dd class="col-sm-8">{{ object.sent_at|default:"—" }}</dd><dt class="col-sm-4 text-body-secondary">Read at</dt><dd class="col-sm-8">{{ object.read_at|default:"Unread" }}</dd></dl>        <form method="post" action="{% url 'employee_requests:notification-action' object.pk action %}" class="mt-3">{% csrf_token %}<button class="btn btn-primary" type="submit">{% if object.read_at %}Mark as unread{% else %}Mark as read{% endif %}</button></form></div></section>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}Groups & Permissions{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">Groups & Permissions</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                    <h1 class="h4 fw-semibold mb-1">Groups & Permissions</h1>
+                    <p class="text-body-secondary mb-0">View Django groups and their assigned permissions.</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-body px-4">
+            <form method="get" class="row g-2 align-items-end mb-4">
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="search">Search</label>
+                    <input class="form-control" id="search" name="q" value="{{ search_query }}" placeholder="Group name">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search me-1" aria-hidden="true"></i>Apply
+                    </button>
+                    <a class="btn btn-outline-secondary" href="?">Reset</a>
+                </div>
+            </form>
+
+            <p class="small text-body-secondary">{{ page_obj.paginator.count }} group{{ page_obj.paginator.count|pluralize }}</p>
+            {% if groups %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th scope="col">Group Name</th>
+                                <th scope="col">Permissions</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group in groups %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ group.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge text-bg-info">{{ group.permission_count }}</span>
+                                    </td>
+                                    <td>
+                                        <a class="btn btn-sm btn-outline-primary" href="{% url 'group-detail' group.pk %}">
+                                            <i class="bi bi-eye me-1" aria-hidden="true"></i>View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center rounded-3 border border-dashed p-5">
+                    <i class="bi bi-inbox fs-2 text-body-secondary" aria-hidden="true"></i>
+                    <h2 class="h6 mt-2">No groups found</h2>
+                    <p class="text-body-secondary mb-0">Try a different search term.</p>
+                </div>
+            {% endif %}
+
+            {% if page_obj.paginator.num_pages > 1 %}
+                <nav aria-label="Group pagination" class="mt-3">
+                    <ul class="pagination justify-content-end mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item"><a class="page-link" href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a></li>
+                        {% else %}<li class="page-item disabled"><span class="page-link">Previous</span></li>{% endif %}
+                        <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                        {% if page_obj.has_next %}
+                            <li class="page-item"><a class="page-link" href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.next_page_number }}">Next</a></li>
+                        {% else %}<li class="page-item disabled"><span class="page-link">Next</span></li>{% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

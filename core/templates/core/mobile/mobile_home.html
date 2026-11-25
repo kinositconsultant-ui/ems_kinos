@@ -1,0 +1,153 @@
+{% extends "core/mobile/_base.html" %}
+{% load static i18n %}
+
+{% block header_title %}{% trans "Dashboard" %}{% endblock %}
+{% block title %}{% trans "Dashboard" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/css/mobile.css' %}">
+<link rel="stylesheet" href="{% static 'employees/css/employee_id_card.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="m-card m-hero">
+    <div class="m-hero-row">
+        <div class="m-hero-avatar">
+            {% if employee.photo %}
+                <img src="{{ employee.photo.url }}" alt="{{ employee.full_name }}" class="m-avatar-img">
+            {% else %}
+                <span class="m-avatar-placeholder">☺</span>
+            {% endif %}
+        </div>
+        <div class="m-hero-text">
+            <span class="m-badge m-badge-info">{% trans "My Profile" %}</span>
+            {% if assignment %}
+                <span class="m-badge m-badge-office">{{ assignment.position.office.office_name }}</span>
+            {% endif %}
+            <h1 class="m-hero-name">{{ employee.full_name }}</h1>
+            <p class="m-hero-sub">
+                <span class="m-hero-id">{{ employee.employee_id }}</span>
+                {% if assignment %}
+                    · {{ assignment.position.position_title }}
+                    {% if assignment.position.department %}
+                        <span class="m-hero-dept">({{ assignment.position.department.department_name }})</span>
+                    {% endif %}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</div>
+
+{% if employee_profile_missing %}
+    <div class="m-alert m-alert-warn" role="alert">
+        {% trans "Your account is not linked to an employee profile. Please contact an administrator." %}
+    </div>
+{% else %}
+
+    <div class="m-metrics">
+        <div class="m-metric">
+            <span class="m-metric-label">{% trans "Today" %}</span>
+            <span class="m-metric-value">
+                {% if today_record %}{{ today_record.get_status_display }}{% else %}{% trans "Not recorded" %}{% endif %}
+            </span>
+        </div>
+        <div class="m-metric">
+            <span class="m-metric-label">{% trans "Check-in" %}</span>
+            <span class="m-metric-value">{{ today_record.first_check_in_at|date:"H:i"|default:"—" }}</span>
+        </div>
+        <div class="m-metric">
+            <span class="m-metric-label">{% trans "Check-out" %}</span>
+            <span class="m-metric-value">{{ today_record.last_check_out_at|date:"H:i"|default:"—" }}</span>
+        </div>
+        <div class="m-metric">
+            <span class="m-metric-label">{% trans "This month" %}</span>
+            <span class="m-metric-value">{{ month_checked_in }}<span class="m-metric-unit">/{{ month_total }}</span></span>
+            <span class="m-metric-note">
+                {% if month_late_count > 0 %}{{ month_late_count }} {% trans "late" %}{% else %}{% trans "On track" %}{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <div class="m-card">
+        <div class="m-card-header">
+            <h2 class="m-card-title">{% trans "Request Summary" %}</h2>
+        </div>
+        <div class="m-card-body">
+            <div class="m-stat-grid">
+                <div class="m-stat m-stat-pending">
+                    <span class="m-stat-label">{% trans "Pending" %}</span>
+                    <span class="m-stat-value">{{ pending_requests_count }}</span>
+                </div>
+                <div class="m-stat m-stat-review">
+                    <span class="m-stat-label">{% trans "Under review" %}</span>
+                    <span class="m-stat-value">{{ under_review_count }}</span>
+                </div>
+                <div class="m-stat m-stat-approved">
+                    <span class="m-stat-label">{% trans "Approved" %}</span>
+                    <span class="m-stat-value">{{ approved_requests_count }}</span>
+                </div>
+                <div class="m-stat m-stat-rejected">
+                    <span class="m-stat-label">{% trans "Rejected" %}</span>
+                    <span class="m-stat-value">{{ rejected_requests_count }}</span>
+                </div>
+            </div>
+
+            {% if recent_requests %}
+                <ul class="m-list">
+                    {% for req in recent_requests %}
+                        <li class="m-list-item">
+                            <span class="m-list-primary">{{ req.request_number }}</span>
+                            <span class="m-list-secondary">{{ req.get_request_type_display }} · {{ req.get_status_display }}</span>
+                            <span class="m-list-meta">{{ req.submitted_at|date:"Y-m-d H:i" }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="m-empty">{% trans "No personal requests submitted yet." %}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="m-card">
+        <div class="m-card-header">
+            <h2 class="m-card-title">{% trans "Current Employment" %}</h2>
+        </div>
+        <div class="m-card-body">
+            {% if assignment %}
+                <dl class="m-dl">
+                    <dt>{% trans "Position" %}</dt><dd>{{ assignment.position.position_title }}</dd>
+                    <dt>{% trans "Department" %}</dt><dd>{{ assignment.position.department.department_name|default:"—" }}</dd>
+                    <dt>{% trans "Office / Branch" %}</dt><dd>{{ assignment.position.office.office_name }}</dd>
+                    <dt>{% trans "Start Date" %}</dt><dd>{{ assignment.start_date }}</dd>
+                    <dt>{% trans "Assignment Type" %}</dt><dd>{{ assignment.get_assignment_type_display }}</dd>
+                </dl>
+            {% elif assignment_ambiguous %}
+                <div class="m-alert m-alert-warn" role="alert">{% trans "Multiple valid primary assignments found. Please contact an administrator." %}</div>
+            {% else %}
+                <div class="m-alert m-alert-info" role="alert">{% trans "No valid primary assignment is recorded." %}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="m-card">
+        <div class="m-card-header">
+            <h2 class="m-card-title">{% trans "Personal & Contact" %}</h2>
+        </div>
+        <div class="m-card-body">
+            <dl class="m-dl">
+                <dt>{% trans "Employee ID" %}</dt><dd>{{ employee.employee_id }}</dd>
+                <dt>{% trans "Full Name" %}</dt><dd>{{ employee.full_name }}</dd>
+                <dt>{% trans "Phone" %}</dt><dd>{{ employee.personal_phone|default:"—" }}</dd>
+                <dt>{% trans "Email" %}</dt><dd>{{ employee.personal_email|default:"—" }}</dd>
+                <dt>{% trans "Address" %}</dt><dd>{{ employee.residential_address|default:"—" }}</dd>
+                <dt>{% trans "Municipality" %}</dt><dd>{{ employee.municipality|default:"—" }}</dd>
+            </dl>
+        </div>
+    </div>
+{% endif %}
+
+<form method="post" action="{{ mobile_logout_url }}" class="m-logout-form">
+    {% csrf_token %}
+    <button type="submit" class="m-logout-btn">{% trans "Log out" %}</button>
+</form>
+{% endblock %}

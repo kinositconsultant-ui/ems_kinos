@@ -1,0 +1,53 @@
+{% load static i18n %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'id' }}" dir="ltr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <title>{% block title %}Employee Attendance{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'core/css/corporate.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="mobile-app-body">
+    <header class="mobile-app-header">
+        <div class="mobile-app-brand">
+            <img src="{% static 'employees/img/KINOS.png' %}" alt="KINOS" class="mobile-app-logo">
+            <span class="mobile-app-title">{% block header_title %}Employee Attendance{% endblock %}</span>
+        </div>
+    </header>
+
+    <main class="mobile-app-main">
+        {% if messages %}
+            <div class="mobile-app-messages">
+                {% for message in messages %}
+                    <div class="mobile-app-alert mobile-app-alert-{{ message.tags|default:'info' }}" role="alert">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <nav class="mobile-app-nav" aria-label="{% trans 'Employee navigation' %}">
+        <a class="mobile-app-nav-item{% if active == 'home' %} active{% endif %}" href="{{ mobile_home_url|default:'/' }}">
+            <span class="mobile-app-nav-icon">⌂</span>
+            <span class="mobile-app-nav-label">{% trans "Home" %}</span>
+        </a>
+        <a class="mobile-app-nav-item{% if active == 'attendance' %} active{% endif %}" href="{{ mobile_attendance_url }}">
+            <span class="mobile-app-nav-icon">◷</span>
+            <span class="mobile-app-nav-label">{% trans "Attendance" %}</span>
+        </a>
+        <a class="mobile-app-nav-item{% if active == 'requests' %} active{% endif %}" href="{{ mobile_requests_url }}">
+            <span class="mobile-app-nav-icon">✉</span>
+            <span class="mobile-app-nav-label">{% trans "Requests" %}</span>
+        </a>
+        <a class="mobile-app-nav-item{% if active == 'notifications' %} active{% endif %}" href="{{ mobile_notifications_url }}">
+            <span class="mobile-app-nav-icon">♬</span>
+            <span class="mobile-app-nav-label">{% trans "Alerts" %}</span>
+        </a>
+        <a class="mobile-app-nav-item{% if active == 'profile' %} active{% endif %}" href="{{ mobile_profile_url }}">
+            <span class="mobile-app-nav-icon">☺</span>
+            <span class="mobile-app-nav-label">{% trans "Profile" %}</span>
+        </a>
+    </nav>
+</body>
+</html>

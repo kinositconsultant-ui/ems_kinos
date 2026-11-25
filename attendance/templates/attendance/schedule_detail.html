@@ -1,0 +1,46 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{{ back_url }}">Employee Schedules</a></li>
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div><h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1><p class="text-body-secondary mb-0">{{ schedule.employee_label }} &middot; {{ schedule.work_date }}</p></div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-secondary" href="{{ back_url }}"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back to List</a>
+                {% if can_edit %}<a class="btn btn-primary" href="{{ edit_url }}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</a>{% endif %}
+                {% if can_cancel %}<a class="btn btn-outline-danger" href="{{ action_url }}"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>{{ action_label }}</a>{% endif %}
+            </div>
+        </div>
+        <div class="card-body px-4">
+            <div class="alert alert-info py-2" role="note"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>These are <strong>planned</strong> times frozen when the schedule was saved. They are not proof of attendance; real events are listed separately below.</div>
+            <dl class="row mb-0">{% for label, value in plan_rows %}<dt class="col-sm-4 col-lg-3 text-body-secondary py-2">{{ label }}</dt><dd class="col-sm-8 col-lg-9 py-2 mb-0">{{ value|default:"&mdash;" }}</dd>{% endfor %}</dl>
+        </div>
+    </section>
+
+    <section class="card border-0 shadow-sm mt-3">
+        <div class="card-header bg-transparent"><h2 class="h5 mb-0">Expected attendance sequence</h2><p class="small text-body-secondary mb-0">The four events every employee on this schedule must record, in this order.</p></div>
+        <div class="card-body"><ol class="list-group list-group-numbered">{% for step in expected_sequence %}<li class="list-group-item d-flex justify-content-between align-items-center"><span class="fw-semibold ms-2 me-auto">{{ step.label }}</span><span class="text-body-secondary">planned {{ step.planned }}</span></li>{% endfor %}</ol></div>
+    </section>
+
+    <section class="card border-0 shadow-sm mt-3">
+        <div class="card-header bg-transparent"><h2 class="h5 mb-0">Recorded attendance events <span class="badge text-bg-secondary ms-1">actual</span></h2></div>
+        <div class="card-body">
+            {% if attendance_record %}
+                <p class="small text-body-secondary">Attendance result: <strong>{{ attendance_record.get_status_display }}</strong>{% if attendance_record.review_status != "not_required" %} &middot; review: {{ attendance_record.get_review_status_display }}{% endif %}</p>
+            {% endif %}
+            {% if actual_events %}
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Event</th><th>Recorded at</th><th>Source</th><th>Verification</th></tr></thead><tbody>
+                    {% for event in actual_events %}<tr><td>{{ event.get_event_type_display }}</td><td>{{ event.occurred_at }}</td><td>{{ event.get_source_display }}</td><td>{% if event.verification_log %}{{ event.verification_log.get_match_result_display }} &middot; liveness {{ event.verification_log.get_liveness_result_display }}{% else %}&mdash;{% endif %}</td></tr>{% endfor %}
+                </tbody></table></div>
+            {% else %}
+                <p class="text-body-secondary mb-0"><i class="bi bi-hourglass me-1" aria-hidden="true"></i>No attendance events have been recorded for this schedule yet.</p>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

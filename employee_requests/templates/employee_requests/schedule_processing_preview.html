@@ -1,0 +1,65 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'employee_requests:schedule-processing-waiting' %}">Schedule Processing</a></li>
+<li class="breadcrumb-item active">Review</li>
+{% endblock %}
+
+{% block content %}
+<section class="card border-0 shadow-sm mb-3">
+  <div class="card-header bg-transparent border-0 pt-4 px-4">
+    <h1 class="h4 fw-semibold mb-1">Review schedule processing</h1>
+    <p class="text-body-secondary mb-0">Read-only preview. Confirm only after verifying the affected schedules below. This records an auditable Staff HR processing action; it does not overwrite Director approval fields.</p>
+  </div>
+  <div class="card-body px-4">
+    <dl class="row mb-0">
+      <dt class="col-sm-4 text-body-secondary py-2">Request</dt><dd class="col-sm-8 py-2">{{ object.request_number }} ({{ object.get_request_type_display }}, {{ object.get_duration_type_display }})</dd>
+      <dt class="col-sm-4 text-body-secondary py-2">Employee / branch</dt><dd class="col-sm-8 py-2">{{ object.employee_assignment.employee }} / {{ object.employee_assignment.position.office.office_name }}</dd>
+      <dt class="col-sm-4 text-body-secondary py-2">Approved period</dt><dd class="col-sm-8 py-2">{{ object.start_date }} &ndash; {{ object.end_date }}</dd>
+      <dt class="col-sm-4 text-body-secondary py-2">Director decision by / at</dt><dd class="col-sm-8 py-2">{{ object.processed_by|default:"Not recorded" }} / {{ object.final_decision_at|default:object.processed_at|default:"Not recorded" }}</dd>
+      <dt class="col-sm-4 text-body-secondary py-2">Staff HR schedule processing</dt><dd class="col-sm-8 py-2">{% if object.schedule_processed_at %}{{ object.schedule_processed_by|default:"Not recorded" }} / {{ object.schedule_processed_at }}{% else %}Not yet processed{% endif %}</dd>
+    </dl>
+  </div>
+</section>
+
+{% if preview.block_reason %}
+<div class="alert alert-warning" role="alert"><strong>Processing blocked.</strong> {{ preview.block_reason }}</div>
+{% endif %}
+{% if preview.warning %}
+<div class="alert alert-info" role="alert">{{ preview.warning }}</div>
+{% endif %}
+
+<section class="card border-0 shadow-sm mb-3">
+  <div class="card-header bg-transparent"><h2 class="h5 mb-0">Target schedules ({{ preview.targets|length }})</h2></div>
+  <div class="card-body">
+    {% if preview.targets %}
+    <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>ID</th><th>Work date</th><th>Shift</th><th>Source</th><th>Status</th><th>Actual/conflict</th><th>Proposed action</th><th>Reason</th></tr></thead><tbody>
+      {% for t in preview.targets %}
+      <tr>
+        <td>{{ t.schedule_id }}</td><td>{{ t.work_date }}</td><td>{{ t.shift }}</td><td>{{ t.schedule_source|default:"&mdash;" }}</td>
+        <td>{{ t.schedule_status }}</td><td>{% if t.has_actual_attendance %}Yes{% else %}No{% endif %}</td>
+        <td>{% if t.action == 'cancel' %}<span class="text-warning">Cancel (Approved leave)</span>{% elif t.action == 'noop' %}<span class="text-body-secondary">No change</span>{% else %}<span class="text-danger">Blocked</span>{% endif %}</td>
+        <td>{{ t.reason }}{% if t.existing_cancel_note %}<br><small class="text-body-secondary">{{ t.existing_cancel_note }}</small>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody></table></div>
+    {% else %}
+    <p class="text-body-secondary mb-0">No schedules matched the approved request period. No changes can be applied.</p>
+    {% endif %}
+  </div>
+</section>
+
+<div class="d-flex gap-2">
+  <a class="btn btn-outline-secondary" href="{% url 'employee_requests:request-detail' object.pk %}">Back to request</a>
+  {% if can_confirm %}
+  <form method="post" action="{% url 'employee_requests:request-process-result' object.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="confirm" value="1">
+    <input type="hidden" name="fingerprint" value="{{ preview.fingerprint }}">
+    <button class="btn btn-primary" type="submit">Confirm schedule processing</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

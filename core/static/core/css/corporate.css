@@ -1,0 +1,386 @@
+:root {
+    --corp-red: #d62828;
+    --corp-yellow: #ffc928;
+    --corp-black: #171717;
+    --corp-background: #f5f6f8;
+    --corp-gray: #e5e7eb;
+    --corp-muted: #6b7280;
+    --corp-success: #16803c;
+    --corp-warning: #d99a00;
+    --corp-danger: #d62828;
+    --corp-info: #2563eb;
+    --corp-shadow: 0 8px 24px rgba(23, 23, 23, 0.07);
+}
+
+html,
+body {
+    background: var(--corp-background);
+    color: var(--corp-black);
+}
+
+body {
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.01em;
+}
+
+a {
+    color: var(--corp-info);
+}
+
+.app-header {
+    border-bottom: 1px solid var(--corp-gray);
+    box-shadow: 0 2px 12px rgba(23, 23, 23, 0.04);
+}
+
+.app-header .nav-link {
+    color: #374151;
+}
+
+/* Sidebar - Professional Deep Navy / Biru Tua */
+.app-sidebar,
+.app-sidebar[data-bs-theme="dark"] {
+    background: #0f1d36 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-brand {
+    background: #091528 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+}
+
+.sidebar-brand .brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    text-decoration: none;
+    padding: 0;
+}
+
+.sidebar-brand .brand-link::before {
+    display: none !important;
+}
+
+.sidebar-brand .brand-image {
+    max-height: 38px;
+    max-width: 38px;
+    height: 38px;
+    width: 38px;
+    object-fit: contain;
+    border-radius: 6px;
+    flex-shrink: 0;
+    opacity: 1 !important;
+    box-shadow: none !important;
+}
+
+.sidebar-brand .brand-text {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #f8fafc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-sidebar .nav-header {
+    color: rgba(255, 255, 255, 0.72) !important;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    margin-top: 0.85rem;
+    padding-left: 1.15rem;
+    text-transform: uppercase;
+}
+
+.app-sidebar .sidebar-menu .nav-link {
+    align-items: center;
+    border-left: 3px solid transparent;
+    border-radius: 6px;
+    color: #ffffff !important;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 2px 8px;
+    padding: 0.65rem 0.75rem;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.app-sidebar .sidebar-menu .nav-link p {
+    color: #ffffff !important;
+    margin-bottom: 0;
+}
+
+.app-sidebar .sidebar-menu .nav-link .nav-icon {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-size: 1rem;
+    margin-right: 0.25rem;
+}
+
+.app-sidebar .sidebar-menu .nav-link .nav-arrow {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.app-sidebar .sidebar-menu .nav-link:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border-left-color: rgba(255, 201, 40, 0.5) !important;
+}
+
+/* Active / clicked state - Yellow (#ffc928) */
+.app-sidebar .sidebar-menu .nav-link.active,
+.app-sidebar .sidebar-menu .nav-item.menu-open > .nav-link,
+.app-sidebar .sidebar-menu .nav-link:active {
+    background: rgba(255, 201, 40, 0.18) !important;
+    border-left-color: #ffc928 !important;
+    color: #ffffff !important;
+}
+
+.app-sidebar .sidebar-menu .nav-link.active .nav-icon,
+.app-sidebar .sidebar-menu .nav-item.menu-open > .nav-link .nav-icon,
+.app-sidebar .sidebar-menu .nav-link.active .nav-arrow,
+.app-sidebar .sidebar-menu .nav-item.menu-open > .nav-link .nav-arrow {
+    color: #ffc928 !important;
+}
+
+.app-sidebar .nav-treeview {
+    padding-bottom: 0.25rem;
+    background: rgba(0, 0, 0, 0.14);
+    border-radius: 6px;
+    margin: 2px 8px;
+}
+
+.app-sidebar .nav-treeview .nav-link {
+    font-size: 0.85rem;
+    margin-left: 6px;
+    padding-left: 0.75rem;
+    color: #ffffff !important;
+}
+
+.app-sidebar .nav-treeview .nav-link p {
+    color: #ffffff !important;
+}
+
+.app-sidebar .nav-treeview .nav-link .nav-icon {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.app-sidebar .nav-treeview .nav-link:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+}
+
+.app-sidebar .nav-treeview .nav-link.active {
+    background: rgba(255, 201, 40, 0.22) !important;
+    border-left-color: #ffc928 !important;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+.app-sidebar .nav-treeview .nav-link.active .nav-icon {
+    color: #ffc928 !important;
+}
+
+.app-content-header {
+    background: transparent;
+    border-bottom: 1px solid var(--corp-gray);
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+}
+
+.app-content-header h3 {
+    color: var(--corp-black);
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.breadcrumb {
+    font-size: 0.85rem;
+}
+
+.breadcrumb-item.active {
+    color: var(--corp-muted);
+}
+
+.app-main,
+.app-content {
+    background: var(--corp-background);
+}
+
+.app-content {
+    padding-top: 1.35rem;
+}
+
+.card {
+    border-color: #eaecf0;
+    border-radius: 12px;
+    box-shadow: var(--corp-shadow);
+}
+
+.card-header {
+    background: #fff;
+    border-bottom-color: var(--corp-gray);
+    border-radius: 12px 12px 0 0;
+}
+
+.card-title {
+    color: var(--corp-black);
+    font-weight: 700;
+}
+
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    min-height: 38px;
+}
+
+.btn-primary,
+.btn-danger {
+    --bs-btn-bg: var(--corp-red);
+    --bs-btn-border-color: var(--corp-red);
+    --bs-btn-hover-bg: #bb2020;
+    --bs-btn-hover-border-color: #bb2020;
+    --bs-btn-active-bg: #a91d1d;
+    --bs-btn-active-border-color: #a91d1d;
+}
+
+.btn-outline-primary,
+.btn-outline-danger {
+    --bs-btn-color: var(--corp-red);
+    --bs-btn-border-color: var(--corp-red);
+    --bs-btn-hover-bg: var(--corp-red);
+    --bs-btn-hover-border-color: var(--corp-red);
+}
+
+.btn-warning {
+    --bs-btn-color: var(--corp-black);
+    --bs-btn-bg: var(--corp-yellow);
+    --bs-btn-border-color: var(--corp-yellow);
+    --bs-btn-hover-bg: #eebd20;
+    --bs-btn-hover-border-color: #eebd20;
+}
+
+.form-control,
+.form-select {
+    border-color: #d1d5db;
+    border-radius: 8px;
+    min-height: 42px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--corp-red);
+    box-shadow: 0 0 0 0.2rem rgba(214, 40, 40, 0.12);
+}
+
+.form-label,
+.col-form-label {
+    color: #374151;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.input-group-text {
+    border-radius: 8px;
+}
+
+.alert {
+    border: 0;
+    border-left: 4px solid currentColor;
+    border-radius: 8px;
+}
+
+.alert-danger {
+    background: #fff2f2;
+    color: var(--corp-danger);
+}
+
+.table {
+    margin-bottom: 0;
+    vertical-align: middle;
+}
+
+.table thead th {
+    background: #fafafa;
+    border-bottom-width: 1px;
+    color: var(--corp-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.045em;
+    padding-bottom: 0.85rem;
+    padding-top: 0.85rem;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.table tbody td {
+    border-color: #edf0f2;
+    padding-bottom: 0.8rem;
+    padding-top: 0.8rem;
+}
+
+.table-responsive {
+    border-radius: 10px;
+}
+
+.table-hover tbody tr:hover > * {
+    background: #fff8f8;
+}
+
+.badge {
+    font-weight: 600;
+}
+
+.pagination .page-link {
+    border-radius: 7px;
+    margin: 0 2px;
+}
+
+.pagination .active > .page-link {
+    background: var(--corp-red);
+    border-color: var(--corp-red);
+}
+
+.dropdown-menu {
+    border: 1px solid var(--corp-gray);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(23, 23, 23, 0.12);
+}
+
+.modal-content {
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 24px 64px rgba(23, 23, 23, 0.2);
+}
+
+.modal-header {
+    border-bottom-color: var(--corp-gray);
+}
+
+.modal-footer {
+    border-top-color: var(--corp-gray);
+}
+
+.app-footer {
+    display: none !important;
+}
+
+@media (max-width: 991.98px) {
+    .app-content-header {
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .app-content {
+        padding-top: 1rem;
+    }
+
+    .card {
+        border-radius: 10px;
+    }
+}

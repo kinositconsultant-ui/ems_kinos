@@ -1,0 +1,52 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'employee_requests:approval-pending' %}">Approval Inbox</a></li><li class="breadcrumb-item active">{{ page_title }}</li>{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4">
+            <h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1>
+            <p class="text-body-secondary mb-0">Execute the Director's decision for approved requests in your authorized branch. This workspace does not approve or reject requests.</p>
+            <ul class="nav nav-tabs mt-3" role="tablist">
+                <li class="nav-item"><a class="nav-link {% if is_waiting %}active{% endif %}" href="{% url 'employee_requests:schedule-processing-waiting' %}">Waiting for Processing <span class="badge text-bg-warning ms-1">{{ waiting_count }}</span></a></li>
+                <li class="nav-item"><a class="nav-link {% if not is_waiting %}active{% endif %}" href="{% url 'employee_requests:schedule-processing-processed' %}">Processed <span class="badge text-bg-secondary ms-1">{{ processed_count }}</span></a></li>
+            </ul>
+        </div>
+        <div class="card-body px-4">
+            <p class="small text-body-secondary">{{ page_obj.paginator.count }} record{{ page_obj.paginator.count|pluralize }} in {{ processing_state|capfirst }}</p>
+            {% if requests %}
+                <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Request</th><th>Employee</th><th>Department</th><th>Type</th><th>Duration</th><th>Requested dates</th><th>Director decision</th><th>Processing</th><th>Action</th></tr></thead><tbody>
+                {% for item in requests %}
+                    <tr>
+                        <td><a href="{% url 'employee_requests:request-detail' item.pk %}">{{ item.request_number }}</a></td>
+                        <td>{{ item.employee_assignment.employee.employee_id }} &mdash; {{ item.employee_assignment.employee.full_name }}</td>
+                        <td>{{ item.employee_assignment.position.department.department_name|default:"&mdash;" }}</td>
+                        <td>{{ item.get_request_type_display }}</td>
+                        <td>{{ item.get_duration_type_display }}</td>
+                        <td>{{ item.start_date }} &ndash; {{ item.end_date }}</td>
+                        <td>{{ item.final_decision_at|default:"&mdash;" }}</td>
+                        <td>{% if item.schedule_processed_at %}<span class="badge text-bg-secondary">Processed</span><div class="small text-body-secondary">{{ item.schedule_processed_at }}{% if item.schedule_processed_by %} · {{ item.schedule_processed_by }}{% endif %}</div>{% else %}<span class="badge text-bg-info">Waiting for Processing</span>{% endif %}</td>
+                        <td><a class="btn btn-sm btn-outline-primary" href="{% url 'employee_requests:request-detail' item.pk %}">{% if item.schedule_processed_at %}View request{% else %}Review processing{% endif %}</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody></table></div>
+            {% else %}
+                <div class="text-center border rounded-3 p-5">
+                    <i class="bi bi-check2-circle fs-2 text-body-secondary" aria-hidden="true"></i>
+                    {% if is_waiting %}
+                        <h2 class="h6 mt-2">No requests await processing</h2>
+                        <p class="text-body-secondary mb-3">Approved requests in your authorized branch that still need schedule processing will appear here.</p>
+                        <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_requests:schedule-processing-processed' %}">View Processed history</a>
+                    {% else %}
+                        <h2 class="h6 mt-2">No processed requests found</h2>
+                        <p class="text-body-secondary mb-3">Completed schedule-processing history for your authorized branch will appear here.</p>
+                        <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_requests:schedule-processing-waiting' %}">View Waiting for Processing</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+            {% if page_obj.paginator.num_pages > 1 %}<nav aria-label="Schedule processing pagination"><ul class="pagination justify-content-end">{% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}<li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>{% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}</ul></nav>{% endif %}
+        </div>
+    </section>
+{% endblock %}

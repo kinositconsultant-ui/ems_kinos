@@ -1,0 +1,118 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}User Accounts{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">User Accounts</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                    <h1 class="h4 fw-semibold mb-1">User Accounts</h1>
+                    <p class="text-body-secondary mb-0">User account for Login.</p>
+                </div>
+                {% if can_create %}
+                    <a class="btn btn-primary" href="{% url 'user-create' %}">
+                        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add user
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body px-4">
+            <form method="get" class="row g-2 align-items-end mb-4">
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="search">Search</label>
+                    <input class="form-control" id="search" name="q" value="{{ search_query }}" placeholder="Username, name, or email">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search me-1" aria-hidden="true"></i>Apply
+                    </button>
+                    <a class="btn btn-outline-secondary" href="?">Reset</a>
+                </div>
+            </form>
+
+            <p class="small text-body-secondary">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</p>
+            {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th scope="col">Username</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Employee profile</th>
+                                <th scope="col">Email</th>
+                                <th scope="col">Groups</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Last login</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for account in users %}
+                                <tr>
+                                    <td>
+                                        {{ account.username }}
+                                        {% if account.is_superuser %}<span class="badge text-bg-warning ms-1">Superuser</span>{% endif %}
+                                    </td>
+                                    <td>{{ account.get_full_name|default:"—" }}</td>
+                                    <td>
+                                        {% with emp=account.employee_profile %}
+                                            {% if emp %}{{ emp.employee_id }} — {{ emp.full_name }}{% else %}—{% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>{{ account.email|default:"—" }}</td>
+                                    <td>
+                                        {% for group in account.groups.all %}
+                                            <span class="badge text-bg-info">{{ group.name }}</span>
+                                        {% empty %}—{% endfor %}
+                                    </td>
+                                    <td>
+                                        {% if account.is_active %}
+                                            <span class="badge text-bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge text-bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ account.last_login|date:"Y-m-d H:i"|default:"—" }}</td>
+                                    <td>
+                                        {% if can_edit_users and not account.is_superuser %}
+                                            <a class="btn btn-sm btn-outline-primary" href="{% url 'user-update' account.pk %}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</a>
+                                        {% endif %}
+                                        {% if can_deactivate and account.is_active and not account.is_superuser and account.pk != request.user.pk %}
+                                            <a class="btn btn-sm btn-outline-danger" href="{% url 'user-deactivate' account.pk %}"><i class="bi bi-person-x me-1" aria-hidden="true"></i>Deactivate</a>
+                                        {% endif %}
+                                        {% if account.is_superuser or not can_edit_users and not can_deactivate %}—{% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center rounded-3 border border-dashed p-5">
+                    <i class="bi bi-inbox fs-2 text-body-secondary" aria-hidden="true"></i>
+                    <h2 class="h6 mt-2">No users found</h2>
+                    <p class="text-body-secondary mb-0">Ubah kata pencarian, atau tambahkan user pertama.</p>
+                </div>
+            {% endif %}
+
+            {% if page_obj.paginator.num_pages > 1 %}
+                <nav aria-label="User pagination" class="mt-3">
+                    <ul class="pagination justify-content-end mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item"><a class="page-link" href="?{{ querystring }}{% if querystring %}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Previous</a></li>
+                        {% else %}<li class="page-item disabled"><span class="page-link">Previous</span></li>{% endif %}
+                        <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                        {% if page_obj.has_next %}
+                            <li class="page-item"><a class="page-link" href="?{{ querystring }}{% if querystring %}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next</a></li>
+                        {% else %}<li class="page-item disabled"><span class="page-link">Next</span></li>{% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

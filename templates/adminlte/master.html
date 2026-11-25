@@ -1,0 +1,70 @@
+{% load static i18n component_tags adminlte %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}"
+      dir="{% if adminlte.layout_rtl %}rtl{% else %}ltr{% endif %}"
+      {% if adminlte.dark_mode %}data-bs-theme="dark"{% endif %}>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    {% block meta %}{% endblock %}
+    <title>{% block title %}{% adminlte_title %}{% endblock %}</title>
+    {% block adminlte_css %}{% endblock %}
+    {% block adminlte_assets %}
+        {% if adminlte.assets_mode == "static" %}
+            {% include "adminlte/partials/_assets_prebuilt.html" %}
+        {% else %}
+            {% include "adminlte/partials/_assets_vite.html" %}
+        {% endif %}
+    {% endblock %}
+    <link rel="stylesheet" href="{% static 'core/css/corporate.css' %}">
+    {% if mobile_employee_area %}
+    <link rel="stylesheet" href="{% static 'core/css/mobile.css' %}">
+    <style>body.mobile-app-body .app-main { padding-bottom: 80px; } body.mobile-app-body .app-content { padding-bottom: 80px; }</style>
+    {% endif %}
+    {% component_css_dependencies %}
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{% if mobile_employee_area %}mobile-app-body {% endif %}{% block body_class %}{% adminlte_body_classes %}{% endblock %}">
+    {% if adminlte.preloader %}{% include "adminlte/partials/preloader.html" %}{% endif %}
+    <div class="app-wrapper">
+        {% include "adminlte/partials/navbar.html" %}
+        {% include "adminlte/partials/sidebar.html" %}
+        <main class="app-main">
+            {% block content_header %}{% endblock %}
+            <div class="app-content {{ adminlte.classes_content }}">
+                <div class="container-fluid">
+                    {% block messages %}{% include "adminlte/partials/messages.html" %}{% endblock %}
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </main>
+        {# Footer copyright removed per user request #}
+    </div>
+    {% if mobile_employee_area %}
+        <nav class="mobile-app-nav" aria-label="Employee mobile navigation">
+            <a class="mobile-app-nav-item{% if active == 'home' %} active{% endif %}" href="{{ mobile_home_url }}">
+                <span class="mobile-app-nav-icon">&#8962;</span>
+                <span class="mobile-app-nav-label">Home</span>
+            </a>
+            <a class="mobile-app-nav-item{% if active == 'attendance' %} active{% endif %}" href="{{ mobile_attendance_url }}">
+                <span class="mobile-app-nav-icon">&#9203;</span>
+                <span class="mobile-app-nav-label">Attendance</span>
+            </a>
+            <a class="mobile-app-nav-item{% if active == 'requests' %} active{% endif %}" href="{{ mobile_requests_url }}">
+                <span class="mobile-app-nav-icon">&#9993;</span>
+                <span class="mobile-app-nav-label">Requests</span>
+            </a>
+            <a class="mobile-app-nav-item{% if active == 'notifications' %} active{% endif %}" href="{{ mobile_notifications_url }}">
+                <span class="mobile-app-nav-icon">&#9835;</span>
+                <span class="mobile-app-nav-label">Alerts</span>
+            </a>
+            <a class="mobile-app-nav-item{% if active == 'profile' %} active{% endif %}" href="{{ mobile_profile_url }}">
+                <span class="mobile-app-nav-icon">&#9786;</span>
+                <span class="mobile-app-nav-label">Profile</span>
+            </a>
+        </nav>
+    {% endif %}
+    {% component_js_dependencies %}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

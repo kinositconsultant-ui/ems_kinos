@@ -1,0 +1,32 @@
+{% load static %}{# Shared portrait Employee ID Card. Non-sensitive data only: name, ID, office, department, position, photo, QR. #}
+<div class="employee-id-card employee-id-card-printable" id="employee-id-card">
+    <div class="employee-id-card-header">
+        <img class="eid-logo" src="{% static 'employees/img/KINOS.png' %}" alt="Institution logo">
+        <div>
+            <div class="eid-institution">{{ institution.name|default:"Attendance System" }}</div>
+            <small>Employee Identification</small>
+        </div>
+    </div>
+    <div class="employee-id-card-body">
+        <div class="eid-photo">
+            <img id="id-card-photo" class="{% if not id_card.photo_url %}d-none{% endif %}" {% if id_card.photo_url %}src="{{ id_card.photo_url }}"{% endif %} data-current-photo="{{ id_card.photo_url }}" alt="Employee photo">
+            <i id="id-card-photo-placeholder" class="bi bi-person eid-photo-placeholder{% if id_card.photo_url %} d-none{% endif %}" aria-hidden="true"></i>
+        </div>
+        <div class="eid-name" id="id-card-name">{{ id_card.name|default:"Employee Name" }}</div>
+        <div class="eid-id" id="id-card-id">{{ id_card.employee_id|default:"Generated after save" }}</div>
+        <div class="eid-details">
+            <div class="eid-meta"><span>Position</span><strong id="id-card-position">{{ id_card.position|default:"—" }}</strong></div>
+            <div class="eid-meta"><span>Department</span><strong id="id-card-department">{{ id_card.department|default:"—" }}</strong></div>
+            <div class="eid-meta"><span>Office</span><strong id="id-card-office">{{ id_card.office|default:"—" }}</strong></div>
+        </div>
+    </div>
+    <div class="employee-id-card-footer">
+        <div class="eid-qr">
+            {% if id_card.qr_url %}
+                <img id="id-card-qr" src="{{ id_card.qr_url }}" alt="Employee QR code">
+            {% else %}
+                <div class="eid-qr-placeholder" id="id-card-qr-placeholder">QR is generated after saving</div>
+            {% endif %}
+        </div>
+    </div>
+</div>

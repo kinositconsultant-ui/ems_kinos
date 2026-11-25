@@ -1,0 +1,74 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'group-list' %}">Groups & Permissions</a></li>
+    <li class="breadcrumb-item active">{{ group.name }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                    <h1 class="h4 fw-semibold mb-1">{{ group.name }}</h1>
+                    <p class="text-body-secondary mb-0">
+                        Group permissions detail.
+                    </p>
+                </div>
+                <a class="btn btn-outline-secondary" href="{% url 'group-list' %}">
+                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back to list
+                </a>
+            </div>
+        </div>
+        <div class="card-body px-4">
+            <div class="alert alert-info mb-4" role="alert">
+                <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
+                <strong>Note:</strong> This page shows permissions explicitly assigned to this group.
+                A user's effective access is the combination of their direct permissions, group permissions,
+                and superuser status. This view does not calculate effective access per user.
+            </div>
+
+            <dl class="row mb-4">
+                <dt class="col-sm-3">Group Name</dt>
+                <dd class="col-sm-9">{{ group.name }}</dd>
+                <dt class="col-sm-3">Total Permissions</dt>
+                <dd class="col-sm-9">{{ group.permissions.count }}</dd>
+            </dl>
+
+            {% if permissions_by_app %}
+                {% for app_label, models in permissions_by_app.items %}
+                    <div class="mb-4">
+                        <h5 class="fw-semibold text-primary mb-3">
+                            <i class="bi bi-app me-1" aria-hidden="true"></i>{{ app_label }}
+                        </h5>
+                        {% for model_name, perms in models.items %}
+                            <div class="card mb-2">
+                                <div class="card-header bg-light py-2">
+                                    <h6 class="mb-0 fw-medium">{{ model_name }}</h6>
+                                </div>
+                                <div class="card-body py-2 px-3">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for perm in perms %}
+                                            <span class="badge text-bg-light text-dark border">
+                                                <code class="small">{{ perm.codename }}</code>
+                                                <span class="text-body-secondary ms-1">({{ perm.name }})</span>
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center rounded-3 border border-dashed p-5">
+                    <i class="bi bi-shield-lock fs-2 text-body-secondary" aria-hidden="true"></i>
+                    <h2 class="h6 mt-2">No permissions assigned</h2>
+                    <p class="text-body-secondary mb-0">This group has no explicitly assigned permissions.</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

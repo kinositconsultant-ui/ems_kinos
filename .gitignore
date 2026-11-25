@@ -12,3 +12,66 @@ media/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# AI model binaries and caches (nested ONNX binaries, backups, download cache)
+/models/face_liveness/*.onnx
+/models/face_recognition/*.onnx
+/models/face_recognition/*.backup-*
+/models/face_recognition_download/
+
+# Generated archives (reversible cleanup)
+.local-archive/
+# Local HTTPS development certificates (mkcert) - never commit private keys
+.certs/
+*.pem
+*.key
+*.crt
+
+# Additional local virtual environment
+.venv-1/
+
+# Root SQLite databases, sidecars and known backup naming
+/*.sqlite3
+/*.sqlite3-wal
+/*.sqlite3-shm
+/*.sqlite3-journal
+/*.sqlite3.backup-*
+
+# Certificate bundles and signing keys
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# All local log-directory contents
+/logs/
+
+# Local audit and investigation reports
+/PRE_PUSH_CODE_REVIEW.md
+/ATTENDANCE_REPAIR_CHECKPOINT.md
+/DEPLOYMENT_READINESS_REPORT.md
+/MOBILE_EMPLOYEE_APK_DIAGNOSIS.md
+/docs/reviews/PHASE1_REPOSITORY_HYGIENE_20261114-093700.md
+/docs/reviews/PRE_GITHUB_DIAGNOSTIC_20261113-162450.md
+
+# Specific local attendance diagnostics
+/check_candidates_final.py
+/check_dryrun_final.py
+/check_dryrun_final2.py
+/check_final19.py
+/check_scope.py
+
+# Sidebar diagnostics with import-time database activity
+/test_compare_render.py
+/test_find_culprit.py
+/test_full_context.py
+/test_full_page_context.py
+/test_full_page_final.py
+/test_request_user.py
+/test_sidebar_direct.py
+/test_sidebar_wrapper_compare.py
+
+# Local model-parity investigations
+/_parity_check_crop.py
+/_parity_check_e2e.py
+/_parity_check_golden.py

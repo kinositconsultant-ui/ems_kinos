@@ -1,0 +1,61 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ report_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">{{ report_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex flex-wrap justify-content-between gap-3">
+            <div>
+                <h1 class="h4 fw-semibold mb-1">{{ report_title }}</h1>
+                <p class="text-body-secondary mb-0">Filter attendance summaries and export the complete authorized filtered results. CSV and Excel use the same scoped query and filters as this report.</p>
+            </div>
+            {% if csv_export_url or xlsx_export_url or export_url %}
+                <div class="d-flex gap-2 align-self-start flex-wrap">
+                    {% if csv_export_url %}<a class="btn btn-outline-primary" href="{{ csv_export_url }}">Export CSV</a>{% elif export_url %}<a class="btn btn-outline-primary" href="{{ export_url }}">Export CSV</a>{% endif %}
+                    {% if xlsx_export_url %}<a class="btn btn-outline-success" href="{{ xlsx_export_url }}">Export Excel (.xlsx)</a>{% endif %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="card-body px-4">
+            <form method="get" class="row g-3 align-items-end mb-4">
+                {% for field in report_form %}
+                    <div class="col-12 col-md-6 col-xl-2">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+                {% endfor %}
+                <div class="col-auto">
+                    <button class="btn btn-primary" type="submit">Apply filters</button>
+                    <a class="btn btn-outline-secondary" href="?">Reset</a>
+                </div>
+            </form>
+            {% if report_form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">{{ report_form.non_field_errors }}</div>
+            {% endif %}
+            <p class="small text-body-secondary">{{ result_count }} result{{ result_count|pluralize }}</p>
+            {% if rows %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr>{% for header in headers %}<th scope="col">{{ header }}</th>{% endfor %}</tr></thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>{% for value in row %}<td>{{ value|default:"&mdash;" }}</td>{% endfor %}</tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center border rounded-3 p-5">
+                    <i class="bi bi-inbox fs-2 text-body-secondary" aria-hidden="true"></i>
+                    <h2 class="h6 mt-2">No attendance records found</h2>
+                    <p class="text-body-secondary mb-0">No results match the selected filters and authorized scope.</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

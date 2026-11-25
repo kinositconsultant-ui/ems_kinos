@@ -1,0 +1,31 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex flex-wrap justify-content-between gap-3">
+            <div><h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1><p class="text-body-secondary mb-0">Current and historical employee placements.</p></div>
+            {% if can_add %}<a class="btn btn-primary align-self-start" href="{% url 'employees:assignment-create' %}"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add assignment</a>{% endif %}
+        </div>
+        <div class="card-body px-4">
+            <form method="get" class="row g-2 align-items-end mb-4">
+                <div class="col-12 col-lg-3"><label class="form-label" for="assignment-search">Search</label><input class="form-control" id="assignment-search" name="q" value="{{ search_query }}" placeholder="Employee, position or office"></div>
+                {% if not is_employee and not is_hr %}<div class="col-6 col-lg-2"><label class="form-label" for="office">Office</label><select class="form-select" name="position__office_id" id="office"><option value="">All</option>{% for office in offices %}<option value="{{ office.pk }}" {% if request.GET.position__office_id == office.pk|stringformat:"s" %}selected{% endif %}>{{ office.office_name }}</option>{% endfor %}</select></div>{% endif %}
+                {% if not is_employee %}<div class="col-6 col-lg-2"><label class="form-label" for="department">Department</label><select class="form-select" name="position__department_id" id="department"><option value="">All</option>{% for department in departments %}<option value="{{ department.pk }}" {% if request.GET.position__department_id == department.pk|stringformat:"s" %}selected{% endif %}>{{ department.department_name }}</option>{% endfor %}</select></div>{% endif %}
+                <div class="col-6 col-lg-2"><label class="form-label" for="assignment-type">Type</label><select class="form-select" name="assignment_type" id="assignment-type"><option value="">All</option>{% for value, label in assignment_types %}<option value="{{ value }}" {% if request.GET.assignment_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                <div class="col-6 col-lg-2"><label class="form-label" for="primary">Primary</label><select class="form-select" name="is_primary" id="primary"><option value="">All</option><option value="True" {% if request.GET.is_primary == "True" %}selected{% endif %}>Primary</option><option value="False" {% if request.GET.is_primary == "False" %}selected{% endif %}>Additional</option></select></div>
+                <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Filter</button><a class="btn btn-outline-secondary" href="?">Reset</a></div>
+            </form>
+            <p class="small text-body-secondary">{{ page_obj.paginator.count }} assignment{{ page_obj.paginator.count|pluralize }}</p>
+            {% if assignments %}<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Employee</th><th>Position</th><th>Office</th><th>Department</th><th>Type</th><th>Period</th><th>Primary</th><th></th></tr></thead><tbody>
+                {% for assignment in assignments %}<tr><td>{{ assignment.employee.employee_id }}<div class="small text-body-secondary">{{ assignment.employee.full_name }}</div></td><td>{{ assignment.position.position_title }}</td><td>{{ assignment.position.office.office_name }}</td><td>{{ assignment.position.department|default:"—" }}</td><td>{{ assignment.get_assignment_type_display }}</td><td>{{ assignment.start_date }} – {{ assignment.end_date|default:"Present" }}</td><td>{{ assignment.is_primary|yesno:"Yes,No" }}</td><td><a class="btn btn-sm btn-outline-primary" href="{% url 'employees:assignment-detail' assignment.pk %}">View</a>{% if can_edit %}<a class="btn btn-sm btn-outline-primary" href="{% url 'employees:assignment-update' assignment.pk %}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit / end</a>{% endif %}</td></tr>{% endfor %}
+            </tbody></table></div>{% else %}<div class="text-center border rounded-3 p-5"><i class="bi bi-diagram-3 fs-2 text-body-secondary" aria-hidden="true"></i><h2 class="h6 mt-2">No assignments found</h2></div>{% endif %}
+            {% if page_obj.paginator.num_pages > 1 %}<nav aria-label="Assignment pagination"><ul class="pagination justify-content-end">{% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?q={{ search_query|urlencode }}&amp;page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}<li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>{% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?q={{ search_query|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}</ul></nav>{% endif %}
+        </div>
+    </section>
+{% endblock %}

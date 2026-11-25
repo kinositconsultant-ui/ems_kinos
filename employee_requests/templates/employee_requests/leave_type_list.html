@@ -1,0 +1,15 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item active">{{ page_title }}</li>{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between gap-3"><div><h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1><p class="text-body-secondary mb-0">Active leave categories are available for employee requests.</p></div>{% if can_add %}<a class="btn btn-primary align-self-start" href="{% url 'employee_requests:leave-type-create' %}">Add leave type</a>{% endif %}</div>
+        <div class="card-body px-4"><form method="get" class="row g-2 align-items-end mb-3"><div class="col-12 col-md-4"><label class="form-label" for="q">Search</label><input class="form-control" id="q" name="q" value="{{ search_query }}" placeholder="Code or name"></div><div class="col-6 col-md-3"><label class="form-label" for="active">Status</label><select class="form-select" id="active" name="is_active"><option value="">All</option><option value="True" {% if request.GET.is_active == "True" %}selected{% endif %}>Active</option><option value="False" {% if request.GET.is_active == "False" %}selected{% endif %}>Inactive</option></select></div><div class="col-auto"><button class="btn btn-outline-primary" type="submit">Filter</button><a class="btn btn-outline-secondary" href="?">Reset</a></div></form>
+            <p class="small text-body-secondary">{{ page_obj.paginator.count }} leave type{{ page_obj.paginator.count|pluralize }}</p>
+            {% if leave_types %}<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Code</th><th>Name</th><th>Paid</th><th>Approval</th><th>Attachment</th><th>Annual maximum</th><th>Status</th><th>Actions</th></tr></thead><tbody>{% for row in table_rows %}{% with item=row.item %}<tr><td>{{ item.code }}</td><td>{{ item.name }}</td><td>{{ item.is_paid|yesno:"Yes,No" }}</td><td>{{ item.requires_approval|yesno:"Required,Not required" }}</td><td>{{ item.requires_attachment|yesno:"Required,Optional" }}</td><td>{{ item.max_days_per_year|default:"—" }}</td><td>{% if item.is_active %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td><td><a class="btn btn-sm btn-outline-primary" href="{% url 'employee_requests:leave-type-detail' item.pk %}">Details</a>{% if row.can_delete %}<a class="btn btn-sm btn-outline-danger" href="{% url 'employee_requests:leave-type-delete' item.pk %}"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</a>{% elif row.can_deactivate %}<a class="btn btn-sm btn-outline-danger" href="{% url 'employee_requests:leave-type-deactivate' item.pk %}">Deactivate</a>{% endif %}</td></tr>{% endwith %}{% endfor %}</tbody></table></div>{% else %}<div class="text-center border rounded-3 p-5"><i class="bi bi-inbox fs-2 text-body-secondary" aria-hidden="true"></i><h2 class="h6 mt-2">No leave types found</h2></div>{% endif %}
+        </div>
+    </section>
+{% endblock %}

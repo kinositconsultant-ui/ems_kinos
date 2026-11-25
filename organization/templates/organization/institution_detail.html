@@ -1,0 +1,128 @@
+{% extends "adminlte/page.html" %}
+{% load static %}
+
+{% block page_title %}Institution Profile{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">Institution Profile</li>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .institution-profile-grid {
+            display: grid;
+            grid-template-columns: 42% 58%;
+            gap: 1.5rem;
+            align-items: stretch;
+        }
+        .institution-visual-wrap {
+            border-radius: 1rem;
+            overflow: hidden;
+            background-color: #eef2f7;
+            min-height: 320px;
+        }
+        .institution-visual {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .institution-info dt {
+            font-weight: 600;
+            color: #64748b;
+        }
+        .institution-info dd {
+            margin-bottom: 0.75rem;
+        }
+        .institution-section {
+            margin-top: 1.25rem;
+            padding: 1rem 1.1rem;
+            border-radius: 0.75rem;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+        .institution-section h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+        .institution-section p {
+            margin-bottom: 0;
+            line-height: 1.65;
+            white-space: pre-line;
+        }
+        .institution-empty {
+            color: #94a3b8;
+            font-style: italic;
+        }
+        @media (max-width: 991.98px) {
+            .institution-profile-grid {
+                grid-template-columns: 1fr;
+            }
+            .institution-visual-wrap {
+                min-height: 240px;
+                max-height: 320px;
+            }
+        }
+        @media (max-width: 575.98px) {
+            .institution-visual-wrap {
+                min-height: 200px;
+            }
+        }
+    </style>
+
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div class="d-flex align-items-center gap-3">
+                {% if profile.logo %}
+                    <img src="{{ profile.logo.url }}" alt="{{ profile.name }} logo" class="img-thumbnail" style="max-width: 72px; max-height: 72px;">
+                {% endif %}
+                <div>
+                    <h1 class="h4 fw-semibold mb-1">{{ profile.name }}</h1>
+                    <p class="text-body-secondary mb-0">Institution profile</p>
+                </div>
+            </div>
+            {% if can_edit %}
+                <a class="btn btn-primary" href="{% url 'organization:institution-update' %}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit profile</a>
+            {% endif %}
+        </div>
+        <div class="card-body px-4">
+            <div class="institution-profile-grid">
+                <div class="institution-visual-wrap">
+                    {% if profile.institution_photo %}
+                        <img src="{{ profile.institution_photo.url }}" alt="{{ profile.name }} photo" class="institution-visual">
+                    {% else %}
+                        <img src="{% static 'organization/img/institution-profile-visual.svg' %}" alt="Institutional technology illustration" class="institution-visual">
+                    {% endif %}
+                </div>
+                <div class="institution-info">
+                    <dl class="row mb-0">
+                        {% for label, value in details %}
+                            <dt class="col-sm-4 col-lg-3 text-body-secondary py-2">{{ label }}</dt>
+                            <dd class="col-sm-8 col-lg-9 py-2 mb-0">{{ value|default:"—" }}</dd>
+                        {% endfor %}
+                    </dl>
+
+                    <div class="institution-section">
+                        <h2>Mission</h2>
+                        {% if profile.mission %}
+                            <p>{{ profile.mission }}</p>
+                        {% else %}
+                            <p class="institution-empty">No mission statement has been recorded.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="institution-section">
+                        <h2>Vision</h2>
+                        {% if profile.vision %}
+                            <p>{{ profile.vision }}</p>
+                        {% else %}
+                            <p class="institution-empty">No vision statement has been recorded.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}

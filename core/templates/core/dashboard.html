@@ -1,0 +1,961 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =========================================================
+   Operational Dashboard  — compact, interactive, professional
+   Scoped with nd- prefix. No other page is affected.
+   ========================================================= */
+
+/* -- Design tokens -- */
+:root {
+  --nd-bg:        #f0f4fa;
+  --nd-surface:   #ffffff;
+  --nd-border:    #e2e8f4;
+  --nd-shadow-xs: 0 1px 4px rgba(30,50,100,.06);
+  --nd-shadow-sm: 0 2px 10px rgba(30,50,100,.09);
+  --nd-shadow-md: 0 6px 24px rgba(30,50,100,.12);
+  --nd-radius:    .75rem;
+  --nd-radius-sm: .5rem;
+  --nd-blue:      #2563eb;
+  --nd-blue-lt:   #eff4ff;
+  --nd-green:     #16a34a;
+  --nd-green-lt:  #ecfdf5;
+  --nd-amber:     #d97706;
+  --nd-amber-lt:  #fffbeb;
+  --nd-red:       #dc2626;
+  --nd-red-lt:    #fef2f2;
+  --nd-cyan:      #0891b2;
+  --nd-cyan-lt:   #ecfeff;
+  --nd-text:      #111827;
+  --nd-muted:     #6b7280;
+  --nd-ease:      cubic-bezier(.4,0,.2,1);
+}
+
+
+/* -- Page shell -- */
+.nd-page {
+  background: var(--nd-bg);
+  margin: -1rem;
+  padding: .85rem .85rem 1.75rem;
+  min-height: calc(100vh - 72px);
+}
+
+/* -- Hero card (title + filters) -- */
+.nd-hero {
+  background: var(--nd-surface);
+  border: 1px solid var(--nd-border);
+  border-radius: var(--nd-radius);
+  box-shadow: var(--nd-shadow-sm);
+  padding: .95rem 1.1rem;
+  margin-bottom: .9rem;
+  transition: box-shadow .2s var(--nd-ease);
+}
+.nd-hero:hover { box-shadow: var(--nd-shadow-md); }
+.nd-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .9rem; flex-wrap: wrap; }
+
+.nd-heading {
+  font-size: 1.3rem; font-weight: 800; color: var(--nd-text);
+  margin: 0 0 .15rem; letter-spacing: -.025em;
+}
+.nd-sub { color: var(--nd-muted); font-size: .82rem; margin: 0; line-height: 1.4; }
+
+.nd-scope-badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  margin-top: .5rem; font-size: .76rem; font-weight: 600;
+  color: var(--nd-blue); background: var(--nd-blue-lt);
+  border: 1px solid rgba(37,99,235,.18); border-radius: 999px;
+  padding: .22rem .65rem;
+  transition: background .18s, border-color .18s;
+}
+.nd-scope-badge:hover { background: #dbeafe; }
+
+/* -- Filter form -- */
+.nd-period-form { display: flex; flex-wrap: wrap; gap: .4rem; align-items: flex-end; }
+.nd-period-form .field { display: flex; flex-direction: column; gap: .12rem; }
+.nd-period-form label {
+  font-size: .68rem; font-weight: 700; color: var(--nd-muted);
+  text-transform: uppercase; letter-spacing: .05em; margin: 0;
+}
+.nd-period-form input[type="date"],
+.nd-period-form select {
+  font-size: .82rem; border: 1px solid #d1dbe8; border-radius: var(--nd-radius-sm);
+  padding: .34rem .55rem; min-width: 130px; height: 34px;
+  background: #f8fafc; color: var(--nd-text);
+  transition: border-color .15s, box-shadow .15s;
+  appearance: auto;
+}
+.nd-period-form input[type="date"]:focus,
+.nd-period-form select:focus {
+  outline: none; border-color: var(--nd-blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+.nd-btn {
+  font-size: .8rem; font-weight: 700; border-radius: var(--nd-radius-sm);
+  padding: .34rem .8rem; line-height: 1.2; height: 34px;
+  display: inline-flex; align-items: center; gap: .3rem;
+  transition: transform .12s, box-shadow .15s, background .15s;
+}
+.nd-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.14); }
+.nd-btn:active { transform: none; }
+
+/* -- Section header -- */
+.nd-section { margin-bottom: .9rem; }
+.nd-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .6rem; margin-bottom: .65rem;
+}
+.nd-section-title {
+  font-size: .92rem; font-weight: 700; color: var(--nd-text);
+  margin: 0; display: flex; align-items: center; gap: .4rem;
+}
+.nd-section-title::before {
+  content: ""; display: inline-block; width: 3px; height: 1em;
+  border-radius: 2px; background: var(--nd-blue);
+}
+.nd-section-sub { font-size: .76rem; color: var(--nd-muted); margin: .08rem 0 0; }
+
+/* -- View-report link -- */
+.nd-view-report {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: .75rem; font-weight: 700; color: var(--nd-blue);
+  text-decoration: none; padding: .22rem .6rem;
+  background: var(--nd-blue-lt); border-radius: var(--nd-radius-sm);
+  border: 1px solid rgba(37,99,235,.18);
+  transition: background .15s, transform .12s;
+}
+.nd-view-report:hover { background: #dbeafe; transform: translateX(2px); }
+
+/* ========== KPI CARDS ========== */
+.nd-kpi-grid {
+  display: grid;
+  gap: .7rem;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.nd-kpi-card {
+  position: relative; overflow: hidden;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem;
+  background: var(--nd-surface); border: 1px solid var(--nd-border);
+  border-radius: var(--nd-radius); padding: .85rem .9rem .8rem;
+  box-shadow: var(--nd-shadow-xs); min-height: 100px;
+  transition: transform .2s var(--nd-ease), box-shadow .2s var(--nd-ease), border-color .2s;
+  cursor: default;
+}
+.nd-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--nd-shadow-md);
+  border-color: transparent;
+}
+/* Accent stripe */
+.nd-kpi-card::after {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 4px; border-radius: var(--nd-radius) 0 0 var(--nd-radius);
+  transition: width .2s var(--nd-ease);
+}
+.nd-kpi-card:hover::after { width: 5px; }
+.nd-kpi-blue::after   { background: var(--nd-blue); }
+.nd-kpi-green::after  { background: var(--nd-green); }
+.nd-kpi-amber::after  { background: var(--nd-amber); }
+.nd-kpi-red::after    { background: var(--nd-red); }
+.nd-kpi-cyan::after   { background: var(--nd-cyan); }
+
+/* Subtle tinted wash per card color */
+.nd-kpi-blue   { background: linear-gradient(135deg,var(--nd-blue-lt) 0%,var(--nd-surface) 55%); }
+.nd-kpi-green  { background: linear-gradient(135deg,var(--nd-green-lt) 0%,var(--nd-surface) 55%); }
+.nd-kpi-amber  { background: linear-gradient(135deg,var(--nd-amber-lt) 0%,var(--nd-surface) 55%); }
+.nd-kpi-red    { background: linear-gradient(135deg,var(--nd-red-lt) 0%,var(--nd-surface) 55%); }
+.nd-kpi-cyan   { background: linear-gradient(135deg,var(--nd-cyan-lt) 0%,var(--nd-surface) 55%); }
+
+.nd-kpi-body { position: relative; z-index: 1; min-width: 0; flex: 1 1 auto; }
+.nd-kpi-label {
+  display: block; font-size: .68rem; font-weight: 700;
+  color: var(--nd-muted); text-transform: uppercase; letter-spacing: .05em;
+}
+.nd-kpi-value {
+  display: block; font-size: 1.75rem; font-weight: 800;
+  color: var(--nd-text); line-height: 1.1; margin-top: .18rem;
+}
+.nd-kpi-unit  { display: block; font-size: .72rem; color: var(--nd-muted); margin-top: .1rem; }
+.nd-kpi-note  { display: block; font-size: .67rem; color: #8b95a1; margin-top: .18rem; line-height: 1.35; }
+
+/* Icon box */
+.nd-kpi-icon {
+  flex: 0 0 auto;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-size: 1.15rem; line-height: 1;
+  transition: transform .2s var(--nd-ease);
+}
+.nd-kpi-card:hover .nd-kpi-icon { transform: scale(1.1) rotate(-3deg); }
+.nd-kpi-blue  .nd-kpi-icon { background: var(--nd-blue-lt);  color: var(--nd-blue); }
+.nd-kpi-green .nd-kpi-icon { background: var(--nd-green-lt); color: var(--nd-green); }
+.nd-kpi-amber .nd-kpi-icon { background: var(--nd-amber-lt); color: var(--nd-amber); }
+.nd-kpi-red   .nd-kpi-icon { background: var(--nd-red-lt);   color: var(--nd-red); }
+.nd-kpi-cyan  .nd-kpi-icon { background: var(--nd-cyan-lt);  color: var(--nd-cyan); }
+
+.nd-kpi-footer { margin-top: .45rem; }
+
+/* ========== CHART PANELS ========== */
+.nd-chart-grid { display: grid; gap: .7rem; grid-template-columns: 1fr; }
+@media (min-width: 992px) { .nd-chart-grid { grid-template-columns: 3fr 2fr; } }
+.nd-chart-grid > :only-child { grid-column: 1 / -1; }
+
+.nd-chart-card {
+  background: var(--nd-surface); border: 1px solid var(--nd-border);
+  border-radius: var(--nd-radius); box-shadow: var(--nd-shadow-xs);
+  display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  transition: box-shadow .2s var(--nd-ease);
+}
+.nd-chart-card:hover { box-shadow: var(--nd-shadow-md); }
+
+.nd-chart-header {
+  padding: .75rem .95rem .65rem; border-bottom: 1px solid var(--nd-border);
+  background: #fafcff;
+}
+.nd-chart-header.nd-accent-blue {
+  background: linear-gradient(180deg,var(--nd-blue-lt) 0%,#fafcff 100%);
+}
+.nd-chart-title { font-size: .9rem; font-weight: 700; color: var(--nd-text); margin: 0; }
+.nd-chart-sub   { font-size: .74rem; color: var(--nd-muted); margin: .1rem 0 0; line-height: 1.4; }
+/* Information data table inside card */
+.nd-chart-table-wrap {
+  overflow: auto;
+  max-height: 380px;
+}
+.nd-chart-table { width: 100%; font-size: .8rem; border-collapse: collapse; }
+.nd-chart-table th {
+  font-size: .68rem; font-weight: 700; color: var(--nd-muted); text-transform: uppercase;
+  letter-spacing: .04em; background: #f8fafc; padding: .5rem .75rem;
+  border-bottom: 1px solid var(--nd-border); text-align: left; white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
+}
+.nd-chart-table td { padding: .45rem .75rem; border-bottom: 1px solid #f0f4fa; color: #374151; font-size: .84rem; }
+.nd-chart-table tr:hover td { background: #f8fafc; }
+.nd-chart-table tr:last-child td {
+  font-weight: 700; background: var(--nd-blue-lt); color: var(--nd-blue);
+}
+
+/* ========== RECENT RECORDS TABLE ========== */
+.nd-table-card {
+  background: var(--nd-surface); border: 1px solid var(--nd-border);
+  border-radius: var(--nd-radius); box-shadow: var(--nd-shadow-xs); overflow: hidden;
+  transition: box-shadow .2s var(--nd-ease);
+}
+.nd-table-card:hover { box-shadow: var(--nd-shadow-md); }
+
+.nd-table { width: 100%; font-size: .82rem; border-collapse: collapse; }
+.nd-table th {
+  font-size: .68rem; font-weight: 700; color: var(--nd-muted); text-transform: uppercase;
+  letter-spacing: .045em; background: #f8fafc; padding: .6rem .8rem;
+  border-bottom: 1px solid var(--nd-border); text-align: left; white-space: nowrap;
+}
+.nd-table td { padding: .58rem .8rem; border-bottom: 1px solid #f0f4fa; color: #374151; vertical-align: middle; }
+.nd-table tbody tr { transition: background .12s; }
+.nd-table tbody tr:hover { background: #f0f6ff; }
+.nd-table tbody tr:hover td { color: var(--nd-text); }
+
+/* Status badges */
+.nd-status {
+  display: inline-flex; align-items: center; gap: .32rem;
+  font-size: .71rem; font-weight: 700; padding: .18rem .52rem;
+  border-radius: 999px; white-space: nowrap;
+}
+.nd-status::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto;
+}
+.nd-status-present {
+  background: var(--nd-green-lt); color: var(--nd-green);
+  border: 1px solid rgba(22,163,74,.2);
+}
+.nd-status-present::before { background: var(--nd-green); }
+.nd-status-late {
+  background: var(--nd-amber-lt); color: var(--nd-amber);
+  border: 1px solid rgba(217,119,6,.2);
+}
+.nd-status-late::before { background: var(--nd-amber); }
+.nd-status-absent {
+  background: var(--nd-red-lt); color: var(--nd-red);
+  border: 1px solid rgba(220,38,38,.2);
+}
+.nd-status-absent::before { background: var(--nd-red); }
+.nd-status-other {
+  background: #f1f5f9; color: #475569;
+  border: 1px solid rgba(100,116,139,.18);
+}
+.nd-status-other::before { background: #94a3b8; }
+
+.nd-link { color: var(--nd-blue); font-weight: 600; text-decoration: none; font-size: .8rem; }
+.nd-link:hover { text-decoration: underline; }
+
+/* ========== EMPTY STATES ========== */
+.nd-empty { width: 100%; text-align: center; color: var(--nd-muted); padding: 1.25rem 1rem; }
+.nd-empty.nd-dashed {
+  border: 1.5px dashed #cdd6e2; border-radius: var(--nd-radius);
+  background: #fafcff;
+}
+.nd-empty i { font-size: 1.75rem; opacity: .4; display: block; margin-bottom: .4rem; }
+.nd-empty h3 { font-size: .9rem; font-weight: 700; color: var(--nd-text); margin: 0 0 .2rem; }
+.nd-empty p  { font-size: .78rem; margin: 0; }
+
+/* ========== ALERT ========== */
+.nd-alert {
+  background: #fffbeb; border: 1px solid rgba(217,119,6,.3);
+  color: #92400e; border-radius: var(--nd-radius-sm);
+  padding: .75rem .95rem; font-size: .84rem;
+  display: flex; align-items: flex-start; gap: .5rem;
+}
+.nd-alert::before {
+  content: "⚠"; font-size: 1rem; flex: 0 0 auto; margin-top: .02rem;
+}
+
+/* ========== REVEAL ANIMATION ========== */
+@media (prefers-reduced-motion: no-preference) {
+  .nd-reveal {
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .22s var(--nd-ease), transform .22s var(--nd-ease);
+  }
+  .nd-reveal.nd-ready { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nd-reveal { opacity: 1; transform: none; transition: none; }
+  .nd-kpi-card, .nd-kpi-icon, .nd-btn, .nd-view-report, .emp-card, .emp-metric-card, .dashboard-stat-card { transition: none !important; }
+}
+
+/* =========================================================
+   Employee Dashboard — clean, modern, interactive & compact
+   ========================================================= */
+.emp-dashboard-wrapper {
+  padding-bottom: 1.5rem;
+}
+
+/* Hero profile banner */
+.emp-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #334155 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--nd-radius, .75rem);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+.emp-hero::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+.emp-hero-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+.emp-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.emp-avatar-placeholder {
+  font-size: 1.85rem;
+  color: #93c5fd;
+  line-height: 1;
+}
+.emp-hero-badge {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .22rem .6rem;
+}
+.emp-office-badge {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #bfdbfe !important;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .22rem .6rem;
+}
+.emp-date-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #cbd5e1 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: .72rem;
+  font-weight: 500;
+  padding: .22rem .6rem;
+}
+.emp-btn-interactive {
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.emp-btn-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+.emp-btn-interactive:active {
+  transform: translateY(0);
+}
+
+/* Quick Metrics Row */
+.emp-metric-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--nd-radius, .75rem);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.emp-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+.emp-metric-label {
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--nd-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  display: block;
+}
+.emp-metric-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.emp-metric-subtext {
+  font-size: .68rem;
+  color: #64748b;
+  font-weight: 500;
+  display: block;
+  margin-top: .15rem;
+}
+.emp-metric-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+/* Information Cards */
+.emp-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: var(--nd-radius, .75rem) !important;
+  box-shadow: 0 1px 4px rgba(30, 50, 100, .05) !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.emp-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(30, 50, 100, .08) !important;
+  border-color: #cbd5e1 !important;
+}
+.emp-card-header {
+  padding: .75rem 1rem !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  background: #fafcff !important;
+  border-radius: var(--nd-radius, .75rem) var(--nd-radius, .75rem) 0 0 !important;
+}
+
+/* Sub-column divider on medium+ screens */
+@media (min-width: 768px) {
+  .border-end-md {
+    border-right: 1px solid #f1f5f9;
+    padding-right: 1.25rem;
+  }
+}
+
+/* Section sub-headers inside cards */
+.emp-section-subhead {
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #64748b;
+  padding-bottom: .35rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Info items (grid layout for employment) */
+.emp-info-item {
+  padding: .35rem 0;
+  border-bottom: 1px solid #f8fafc;
+  display: flex;
+  flex-direction: column;
+}
+.emp-info-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.emp-info-value {
+  font-size: .88rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-top: .1rem;
+}
+
+/* Data Definition Lists */
+.emp-dl dt {
+  font-size: .74rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding-top: .3rem;
+  padding-bottom: .3rem;
+  border-bottom: 1px solid #f8fafc;
+}
+.emp-dl dd {
+  font-size: .86rem;
+  font-weight: 600;
+  color: #1e293b;
+  padding-top: .3rem;
+  padding-bottom: .3rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid #f8fafc;
+}
+
+/* Request Summary Stat Grid */
+.dashboard-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: .75rem;
+}
+.dashboard-stat-card {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  border-radius: 10px;
+  transition: transform .15s ease, box-shadow .15s ease;
+  cursor: default;
+}
+.dashboard-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .08);
+}
+.dashboard-stat-card .stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex: 0 0 auto;
+}
+.dashboard-stat-card .stat-body {
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-stat-card .stat-label {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.dashboard-stat-card .stat-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-top: .1rem;
+}
+
+.dashboard-stat-card.stat-pending {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+}
+.dashboard-stat-card.stat-pending .stat-icon {
+  background: rgba(217, 119, 6, .14);
+  color: #d97706;
+}
+
+.dashboard-stat-card.stat-review {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+.dashboard-stat-card.stat-review .stat-icon {
+  background: rgba(37, 99, 235, .14);
+  color: #2563eb;
+}
+
+.dashboard-stat-card.stat-approved {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #047857;
+}
+.dashboard-stat-card.stat-approved .stat-icon {
+  background: rgba(22, 163, 74, .14);
+  color: #16a34a;
+}
+
+.dashboard-stat-card.stat-rejected {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+.dashboard-stat-card.stat-rejected .stat-icon {
+  background: rgba(220, 38, 38, .14);
+  color: #dc2626;
+}
+
+/* Recent Requests Table */
+.emp-table th {
+  font-size: .7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: #f8fafc;
+  padding: .55rem .85rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.emp-table td {
+  padding: .55rem .85rem;
+  font-size: .84rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.emp-table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+/* ID Card Container inside dashboard */
+.emp-id-card-container {
+  min-height: 380px;
+  background: #f8fafc;
+  border-radius: 0 0 var(--nd-radius, .75rem) var(--nd-radius, .75rem);
+}
+
+/* Quick Navigation List Group */
+.emp-quick-list {
+  border-radius: 8px;
+}
+.emp-quick-item {
+  padding: .7rem .85rem;
+  border-color: #f1f5f9;
+  border-radius: 8px !important;
+  margin-bottom: .25rem;
+  transition: all .15s ease;
+}
+.emp-quick-item:last-child {
+  margin-bottom: 0;
+}
+.emp-quick-item:hover {
+  background-color: #f8fafc;
+  transform: translateX(3px);
+}
+.emp-quick-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.emp-quick-title {
+  font-size: .84rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.25;
+}
+.emp-quick-desc {
+  font-size: .7rem;
+  color: #64748b;
+  line-height: 1.2;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if employee_dashboard %}
+    {% include "core/_employee_dashboard.html" %}
+{% else %}
+<main class="nd-page" aria-label="Operational dashboard">
+    <section class="nd-hero nd-reveal">
+        <div class="nd-hero-top">
+            <div>
+                <h1 class="nd-heading">Employee Attendance Dashboard</h1>
+                <p class="nd-sub">
+                    Reporting period: {{ period_label }}{% if period_is_today %} · present-day snapshot{% endif %}{% if time_zone %} · {{ time_zone }}{% endif %}
+                </p>
+                <span class="nd-scope-badge"><i class="bi bi-diagram-3" aria-hidden="true"></i>{{ scope_label }}</span>
+            </div>
+            <form method="get" class="nd-period-form" aria-label="Reporting period">
+                <div class="field">
+                    <label for="nd-period">Period</label>
+                    <select id="nd-period" name="period" class="form-select form-select-sm" data-nd-period>
+                        <option value="daily"{% if period_mode == 'daily' %} selected{% endif %}>Daily</option>
+                        <option value="monthly"{% if period_mode == 'monthly' %} selected{% endif %}>Monthly</option>
+                        <option value="yearly"{% if period_mode == 'yearly' %} selected{% endif %}>Yearly</option>
+                    </select>
+                </div>
+                <div class="field" data-nd-mode="daily"{% if period_mode != 'daily' %} style="display:none"{% endif %}>
+                    <label for="nd-date">Date</label>
+                    <input type="date" id="nd-date" name="date" value="{{ period_controls.date|default:today|date:'Y-m-d' }}">
+                </div>
+                <div class="field" data-nd-mode="monthly"{% if period_mode != 'monthly' %} style="display:none"{% endif %}>
+                    <label for="nd-month">Month</label>
+                    <select id="nd-month" name="month" class="form-select form-select-sm">
+                        {% for m,name in month_choices %}<option value="{{ m }}"{% if period_controls.month == m %} selected{% endif %}>{{ name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="field" data-nd-mode="monthly yearly"{% if period_mode == 'daily' %} style="display:none"{% endif %}>
+                    <label for="nd-year">Year</label>
+                    <select id="nd-year" name="year" class="form-select form-select-sm">
+                        {% for y in year_choices %}<option value="{{ y }}"{% if period_controls.year == y %} selected{% endif %}>{{ y }}</option>{% endfor %}
+                    </select>
+                </div>
+                {% if show_office_filter %}
+                <div class="field">
+                    <label for="nd-office">Branch</label>
+                    <select id="nd-office" name="office" class="form-select form-select-sm">
+                        <option value="">All authorized branches</option>
+                        {% for o in filter_offices %}<option value="{{ o.id }}"{% if selected_office_id == o.id %} selected{% endif %}>{{ o.office_name }}</option>{% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                {% if show_department_filter %}
+                <div class="field">
+                    <label for="nd-dept">Department</label>
+                    <select id="nd-dept" name="department" class="form-select form-select-sm">
+                        <option value="">All departments</option>
+                        {% for d in filter_departments %}<option value="{{ d.id }}"{% if selected_department_id == d.id %} selected{% endif %}>{{ d.department_name }}{% if d.office__office_name %} ({{ d.office__office_name }}){% endif %}</option>{% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <button class="btn btn-primary nd-btn" type="submit">Apply</button>
+                <a class="btn btn-outline-secondary nd-btn" href="?">Reset</a>
+            </form>
+        </div>
+    </section>
+
+    {% if not scope_available %}
+        <section class="nd-section">
+            <div class="nd-alert" role="status">
+                <strong>Organizational scope not configured.</strong><br>
+                {{ scope_unavailable_reason }}
+            </div>
+        </section>
+    {% endif %}
+
+    <section class="nd-section nd-reveal" aria-labelledby="nd-kpi-title">
+        <div class="nd-section-header">
+            <div>
+                <h2 class="nd-section-title" id="nd-kpi-title">Key indicators</h2>
+                <p class="nd-section-sub">Authorized employee and attendance metrics for the selected period and scope.</p>
+            </div>
+        </div>
+        <div class="nd-kpi-grid">
+            {% if kpi_cards %}
+                {% for card in kpi_cards %}
+                    {% if not card.authorized %}
+                        <article class="nd-kpi-card nd-kpi-{{ card.color|default:'blue' }}">
+                            <div class="nd-kpi-body">
+                                <span class="nd-kpi-label">{{ card.title }}</span>
+                                <span class="nd-kpi-value">—</span>
+                                <span class="nd-kpi-unit">{{ card.unit }}</span>
+                                <span class="nd-kpi-note">Not authorized</span>
+                            </div>
+                            <span class="nd-kpi-icon" aria-hidden="true"><i class="bi bi-lock"></i></span>
+                        </article>
+                    {% else %}
+                        <article class="nd-kpi-card nd-kpi-{{ card.color|default:'blue' }}">
+                            <div class="nd-kpi-body">
+                                <span class="nd-kpi-label">{{ card.title }}</span>
+                                <span class="nd-kpi-value">{{ card.value }}</span>
+                                <span class="nd-kpi-unit">{{ card.unit }}</span>
+                                {% if card.note %}<span class="nd-kpi-note">{{ card.note }}</span>{% endif %}
+                                {% if card.url %}
+                                    <div class="nd-kpi-footer">
+                                        <a class="nd-view-report" href="{{ card.url }}">View report <i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <span class="nd-kpi-icon" aria-hidden="true"><i class="{{ card.icon }}"></i></span>
+                        </article>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="nd-empty nd-dashed">
+                    <i class="bi bi-bar-chart" aria-hidden="true"></i>
+                    <h3>No indicators available</h3>
+                    <p>No authorized dashboard indicators are available for this account.</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="nd-section nd-reveal" aria-labelledby="nd-charts-title">
+        <div class="nd-section-header">
+            <div>
+                <h2 class="nd-section-title" id="nd-charts-title">Attendance summary</h2>
+                <p class="nd-section-sub">Attendance-record trends and status distribution from verified scoped data. Status distribution includes all applicable statuses in the selected period.</p>
+            </div>
+            {% if report_url %}<a class="nd-view-report" href="{{ report_url }}">View report <i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>{% endif %}
+        </div>
+        <div class="nd-chart-grid">
+            <article class="nd-chart-card">
+                <div class="nd-chart-header"><h3 class="nd-chart-title">{% if trend_chart %}{{ trend_chart.title|default:"Attendance trend" }}{% else %}Attendance trend{% endif %}</h3><p class="nd-chart-sub">{% if trend_chart %}{{ trend_chart.subtitle|default:"" }}{% endif %}</p></div>
+                {% if trend_chart and trend_chart.authorized == False %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-lock" aria-hidden="true"></i><h3>Not authorized</h3><p>You do not have permission to view attendance records.</p></div></div>
+                {% elif trend_chart and trend_chart.empty %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-graph-up" aria-hidden="true"></i><h3>No records</h3><p>No attendance records are available for the selected period and scope.</p></div></div>
+                {% elif not scope_available %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-slash-circle" aria-hidden="true"></i><h3>No data</h3><p>Configure an authorized scope to view attendance trends.</p></div></div>
+                {% elif trend_chart and trend_chart.table %}
+                    <div class="nd-chart-table-wrap">{{ trend_chart.table }}</div>
+                {% else %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-graph-up" aria-hidden="true"></i><h3>No records</h3><p>No attendance records are available for the selected period and scope.</p></div></div>
+                {% endif %}
+            </article>
+            <article class="nd-chart-card">
+                <div class="nd-chart-header nd-accent-blue"><h3 class="nd-chart-title">{% if distribution_chart %}{{ distribution_chart.title|default:"Status distribution" }}{% else %}Status distribution{% endif %}</h3><p class="nd-chart-sub">{% if distribution_chart %}{{ distribution_chart.subtitle|default:"" }}{% endif %}</p></div>
+                {% if distribution_chart and distribution_chart.authorized == False %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-lock" aria-hidden="true"></i><h3>Not authorized</h3><p>You do not have permission to view attendance records.</p></div></div>
+                {% elif distribution_chart and distribution_chart.empty %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-pie-chart" aria-hidden="true"></i><h3>No records</h3><p>No attendance records are available for the selected period and scope.</p></div></div>
+                {% elif distribution_chart and distribution_chart.table %}
+                    <div class="nd-chart-table-wrap">{{ distribution_chart.table }}</div>
+                {% else %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-pie-chart" aria-hidden="true"></i><h3>No records</h3><p>No attendance records are available for the selected period and scope.</p></div></div>
+                {% endif %}
+            </article>
+        </div>
+        {% if comparison_chart or employee_distribution_chart or leave_summary %}
+        <div class="nd-chart-grid" style="margin-top:.85rem">
+            {% if employee_distribution_chart and employee_distribution_chart.authorized != False %}
+            <article class="nd-chart-card">
+                <div class="nd-chart-header"><h3 class="nd-chart-title">{{ employee_distribution_chart.title }}</h3><p class="nd-chart-sub">{{ employee_distribution_chart.subtitle }}</p></div>
+                {% if employee_distribution_chart.empty %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-people" aria-hidden="true"></i><h3>No employees</h3><p>No active employees in authorized scope.</p></div></div>
+                {% elif employee_distribution_chart.table %}
+                    <div class="nd-chart-table-wrap">{{ employee_distribution_chart.table }}</div>
+                {% endif %}
+            </article>
+            {% endif %}
+            {% if comparison_chart and comparison_chart.authorized != False %}
+            <article class="nd-chart-card">
+                <div class="nd-chart-header"><h3 class="nd-chart-title">{{ comparison_chart.title }}</h3><p class="nd-chart-sub">{{ comparison_chart.subtitle }}</p></div>
+                {% if comparison_chart.empty %}
+                    <div class="p-3"><div class="nd-empty"><i class="bi bi-bar-chart" aria-hidden="true"></i><h3>No records</h3><p>No attendance records available for comparison.</p></div></div>
+                {% elif comparison_chart.table %}
+                    <div class="nd-chart-table-wrap">{{ comparison_chart.table }}</div>
+                {% endif %}
+            </article>
+            {% endif %}
+            {% if leave_summary and leave_summary.authorized != False %}
+            <article class="nd-chart-card">
+                <div class="nd-chart-header"><h3 class="nd-chart-title">{{ leave_summary.title }}</h3><p class="nd-chart-sub">{{ leave_summary.subtitle }}</p></div>
+                <div class="nd-chart-table-wrap">{{ leave_summary.table }}</div>
+                {% if leave_summary.calendar_url %}
+                    <div class="nd-chart-table-wrap" style="padding:.5rem .85rem;border-top:1px solid var(--nd-border);background:#fafcff">
+                        <a class="nd-view-report" href="{{ leave_summary.calendar_url }}">View leave calendar <i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                    </div>
+                {% endif %}
+            </article>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="nd-section nd-reveal" aria-labelledby="nd-table-title">
+        <div class="nd-section-header">
+            <div>
+                <h2 class="nd-section-title" id="nd-table-title">Recent attendance records</h2>
+                <p class="nd-section-sub">Up to {{ RECENT_LIMIT|default:10 }} authorized records in the selected period.</p>
+            </div>
+            {% if report_url %}<a class="nd-view-report" href="{{ report_url }}">View report <i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>{% endif %}
+        </div>
+        <div class="nd-table-card">
+            {% if not can_view_attendance %}
+                <div class="nd-empty"><i class="bi bi-lock" aria-hidden="true"></i><h3>Not authorized</h3><p>You do not have permission to view attendance records.</p></div>
+            {% elif recent_records %}
+                <div class="table-responsive">
+                    <table class="nd-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Employee</th>
+                                <th scope="col">Department</th>
+                                <th scope="col">Work date</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in recent_records %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">{{ row.employee_name }}</div>
+                                        <div class="text-body-secondary small">{{ row.employee_id }}</div>
+                                    </td>
+                                    <td>{{ row.department }}</td>
+                                    <td>{{ row.work_date|date:"Y-m-d" }}</td>
+                                    <td>
+                                        {% with s=row.status|lower %}
+                                            <span class="nd-status {% if 'present' in s or 'on time' in s %}nd-status-present{% elif 'late' in s %}nd-status-late{% elif 'absent' in s %}nd-status-absent{% else %}nd-status-other{% endif %}">{{ row.status }}</span>
+                                        {% endwith %}
+                                    </td>
+                                    <td>{% if row.url %}<a class="nd-link" href="{{ row.url }}">Details</a>{% else %}<span class="text-body-secondary">—</span>{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="nd-empty"><i class="bi bi-inbox" aria-hidden="true"></i><h3>No records</h3><p>No attendance records match the selected period and authorized scope.</p></div>
+            {% endif %}
+        </div>
+    </section>
+</main>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not employee_dashboard %}
+<script>
+(function () {
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var nodes = document.querySelectorAll('.nd-page .nd-reveal');
+    if (nodes.length) {
+        if (reduce) { nodes.forEach(function (n) { n.classList.add('nd-ready'); }); }
+        else { nodes.forEach(function (n, i) { window.setTimeout(function () { n.classList.add('nd-ready'); }, Math.min(i * 35, 140)); }); }
+    }
+    var period = document.querySelector('[data-nd-period]');
+    function syncPeriod() {
+        if (!period) return;
+        var mode = period.value;
+        document.querySelectorAll('[data-nd-mode]').forEach(function (el) {
+            var modes = (el.getAttribute('data-nd-mode') || '').split(/\s+/);
+            el.style.display = modes.indexOf(mode) >= 0 ? '' : 'none';
+        });
+    }
+    if (period) { period.addEventListener('change', syncPeriod); syncPeriod(); }
+})();
+</script>
+{% endif %}
+{% endblock %}

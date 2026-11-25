@@ -1,0 +1,12 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}Leave Type Details{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'employee_requests:leave-type-list' %}">Leave Types</a></li><li class="breadcrumb-item active">{{ object.code }}</li>{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between gap-3"><div><h1 class="h4 fw-semibold mb-1">{{ object.name }}</h1><p class="text-body-secondary mb-0">{{ object.code }}</p></div><div class="d-flex gap-2"><a class="btn btn-outline-secondary" href="{% url 'employee_requests:leave-type-list' %}">Back</a>{% if can_edit %}<a class="btn btn-primary" href="{% url 'employee_requests:leave-type-update' object.pk %}">Edit</a>{% endif %}{% if can_delete %}<a class="btn btn-outline-danger" href="{% url 'employee_requests:leave-type-delete' object.pk %}"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</a>{% elif can_deactivate %}<a class="btn btn-outline-danger" href="{% url 'employee_requests:leave-type-deactivate' object.pk %}">Deactivate</a>{% endif %}</div></div>
+        <div class="card-body px-4"><dl class="row mb-0"><dt class="col-sm-4 text-body-secondary py-2">Description</dt><dd class="col-sm-8 py-2">{{ object.description|default:"—" }}</dd><dt class="col-sm-4 text-body-secondary py-2">Paid</dt><dd class="col-sm-8 py-2">{{ object.is_paid|yesno:"Yes,No" }}</dd><dt class="col-sm-4 text-body-secondary py-2">Requires approval</dt><dd class="col-sm-8 py-2">{{ object.requires_approval|yesno:"Yes,No" }}</dd><dt class="col-sm-4 text-body-secondary py-2">Requires attachment</dt><dd class="col-sm-8 py-2">{{ object.requires_attachment|yesno:"Yes,No" }}</dd><dt class="col-sm-4 text-body-secondary py-2">Maximum days per year</dt><dd class="col-sm-8 py-2">{{ object.max_days_per_year|default:"—" }}</dd><dt class="col-sm-4 text-body-secondary py-2">Active</dt><dd class="col-sm-8 py-2">{{ object.is_active|yesno:"Yes,No" }}</dd></dl></div>
+    </section>
+{% endblock %}

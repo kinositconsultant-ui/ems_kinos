@@ -1,0 +1,509 @@
+{% load static %}
+<div class="emp-dashboard-wrapper">
+    <!-- Hero Profile Header Banner -->
+    <section class="card emp-hero shadow-sm mb-3">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="emp-hero-avatar">
+                        {% if employee.photo %}
+                            <img src="{{ employee.photo.url }}" alt="{{ employee.full_name }}" class="emp-avatar-img">
+                        {% else %}
+                            <div class="emp-avatar-placeholder">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                            <span class="badge emp-hero-badge">
+                                <i class="bi bi-person-badge me-1"></i> My Profile
+                            </span>
+                            {% if assignment %}
+                                <span class="badge emp-office-badge">
+                                    <i class="bi bi-building me-1"></i>{{ assignment.position.office.office_name }}
+                                </span>
+                            {% endif %}
+                            <span class="badge emp-date-badge d-none d-sm-inline-flex">
+                                <i class="bi bi-calendar3 me-1"></i>{{ today|date:"l, d M Y" }}
+                            </span>
+                        </div>
+                        <h1 class="h5 fw-bold mb-1 text-white">{{ employee.full_name }}</h1>
+                        <p class="mb-0 text-white-50 small">
+                            <span class="text-info fw-semibold">{{ employee.employee_id }}</span>
+                            {% if assignment %}
+                                &middot; {{ assignment.position.position_title }}
+                                {% if assignment.position.department %}
+                                    <span class="opacity-75">({{ assignment.position.department.department_name }})</span>
+                                {% endif %}
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'employees:employee-self-service-profile' %}" class="btn btn-light btn-sm fw-semibold shadow-sm px-3 py-2 emp-btn-interactive">
+                        <i class="bi bi-pencil-square me-1 text-primary"></i>Edit Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <link rel="stylesheet" href="{% static 'employees/css/employee_id_card.css' %}">
+    <link rel="stylesheet" href="{% static 'employees/css/employee_id_card_print.css' %}" media="print">
+
+    {% if employee_profile_missing %}
+        <div class="alert alert-warning d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+            <div>Your account is not linked to an employee profile. Please contact an administrator to configure your employee profile.</div>
+        </div>
+    {% else %}
+        <!-- Attendance Quick Metrics Row -->
+        <div class="row g-2 g-md-3 mb-3">
+            <div class="col-6 col-lg-3">
+                <div class="card emp-metric-card h-100">
+                    <div class="card-body p-2 px-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="emp-metric-label">Status Today</span>
+                            <div class="mt-1">
+                                {% if today_record %}
+                                    {% with s=today_record.get_status_display|lower %}
+                                        <span class="nd-status {% if 'present' in s or 'on time' in s %}nd-status-present{% elif 'late' in s %}nd-status-late{% elif 'absent' in s %}nd-status-absent{% else %}nd-status-other{% endif %}">
+                                            {{ today_record.get_status_display }}
+                                        </span>
+                                    {% endwith %}
+                                {% else %}
+                                    <span class="nd-status nd-status-other">Not Recorded</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="emp-metric-icon bg-primary-subtle text-primary">
+                            <i class="bi bi-calendar2-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card emp-metric-card h-100">
+                    <div class="card-body p-2 px-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="emp-metric-label">Check-in</span>
+                            <div class="emp-metric-value text-dark mt-1">
+                                {{ today_record.first_check_in_at|date:"H:i"|default:"—" }}
+                            </div>
+                            <span class="emp-metric-subtext">{% if today_record.first_check_in_at %}Recorded{% else %}Pending{% endif %}</span>
+                        </div>
+                        <div class="emp-metric-icon bg-success-subtle text-success">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card emp-metric-card h-100">
+                    <div class="card-body p-2 px-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="emp-metric-label">Check-out</span>
+                            <div class="emp-metric-value text-dark mt-1">
+                                {{ today_record.last_check_out_at|date:"H:i"|default:"—" }}
+                            </div>
+                            <span class="emp-metric-subtext">{% if today_record.last_check_out_at %}Recorded{% else %}Pending{% endif %}</span>
+                        </div>
+                        <div class="emp-metric-icon bg-info-subtle text-info">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card emp-metric-card h-100">
+                    <div class="card-body p-2 px-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="emp-metric-label">This Month Attendance</span>
+                            <div class="emp-metric-value text-dark mt-1">
+                                {{ month_checked_in }} <span class="small text-muted fw-normal">/ {{ month_total }} days</span>
+                            </div>
+                            <span class="emp-metric-subtext">
+                                {% if month_late_count > 0 %}
+                                    <span class="text-warning-emphasis"><i class="bi bi-clock me-1"></i>{{ month_late_count }} late</span>
+                                {% else %}
+                                    <span class="text-success"><i class="bi bi-check-circle me-1"></i>On track</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="emp-metric-icon bg-warning-subtle text-warning">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content: Left 8-col / Right 4-col balanced grid -->
+        <div class="row g-3">
+            <!-- Left Column: Work, Requests & Information -->
+            <div class="col-12 col-xl-8 col-lg-7">
+                <!-- Current Employment Card -->
+                <section class="card emp-card mb-3">
+                    <div class="card-header emp-card-header d-flex align-items-center justify-content-between">
+                        <h2 class="h6 fw-bold mb-0 text-dark">
+                            <i class="bi bi-briefcase-fill text-primary me-2"></i>Current Employment
+                        </h2>
+                        {% if assignment %}
+                            <span class="badge text-bg-light border text-dark">{{ assignment.get_assignment_type_display }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-3">
+                        {% if assignment %}
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <div class="emp-info-item">
+                                        <span class="emp-info-label">Position</span>
+                                        <span class="emp-info-value fw-bold text-dark">{{ assignment.position.position_title }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="emp-info-item">
+                                        <span class="emp-info-label">Department</span>
+                                        <span class="emp-info-value">{{ assignment.position.department.department_name|default:"—" }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="emp-info-item">
+                                        <span class="emp-info-label">Office / Branch</span>
+                                        <span class="emp-info-value">{{ assignment.position.office.office_name }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="emp-info-item">
+                                        <span class="emp-info-label">Start Date</span>
+                                        <span class="emp-info-value">{{ assignment.start_date }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="emp-info-item mb-0 border-bottom-0 pb-0">
+                                        <span class="emp-info-label">Assignment Type</span>
+                                        <span class="emp-info-value">{{ assignment.get_assignment_type_display }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% elif assignment_ambiguous %}
+                            <div class="alert alert-warning mb-0" role="alert">
+                                <i class="bi bi-exclamation-triangle me-1"></i> Multiple valid primary assignments found. Please contact an administrator.
+                            </div>
+                        {% else %}
+                            <div class="alert alert-secondary mb-0" role="alert">
+                                <i class="bi bi-info-circle me-1"></i> No valid primary assignment is recorded.
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <!-- Request Summary & Status Card -->
+                <section class="card emp-card mb-3">
+                    <div class="card-header emp-card-header d-flex align-items-center justify-content-between">
+                        <h2 class="h6 fw-bold mb-0 text-dark">
+                            <i class="bi bi-journal-text text-primary me-2"></i>Request Summary &amp; Status
+                        </h2>
+                        {% if perms.employee_requests.view_employeerequest %}
+                            <a href="{% url 'employee_requests:request-mine' %}" class="btn btn-outline-primary btn-sm py-1 px-2 fw-semibold">
+                                View All <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="dashboard-stat-grid mb-3">
+                            <div class="dashboard-stat-card stat-pending">
+                                <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+                                <div class="stat-body">
+                                    <span class="stat-label">Pending</span>
+                                    <span class="stat-value">{{ pending_requests_count }}</span>
+                                </div>
+                            </div>
+                            <div class="dashboard-stat-card stat-review">
+                                <div class="stat-icon"><i class="bi bi-eye"></i></div>
+                                <div class="stat-body">
+                                    <span class="stat-label">Under Review</span>
+                                    <span class="stat-value">{{ under_review_count }}</span>
+                                </div>
+                            </div>
+                            <div class="dashboard-stat-card stat-approved">
+                                <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+                                <div class="stat-body">
+                                    <span class="stat-label">Approved</span>
+                                    <span class="stat-value">{{ approved_requests_count }}</span>
+                                </div>
+                            </div>
+                            <div class="dashboard-stat-card stat-rejected">
+                                <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
+                                <div class="stat-body">
+                                    <span class="stat-label">Rejected</span>
+                                    <span class="stat-value">{{ rejected_requests_count }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if recent_requests %}
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0 emp-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Request #</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Submitted At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for req in recent_requests %}
+                                        <tr>
+                                            <td class="fw-bold text-primary">{{ req.request_number }}</td>
+                                            <td>{{ req.get_request_type_display }}</td>
+                                            <td>
+                                                {% with s=req.get_status_display|lower %}
+                                                    <span class="nd-status {% if 'approved' in s %}nd-status-present{% elif 'pending' in s %}nd-status-late{% elif 'rejected' in s %}nd-status-absent{% else %}nd-status-other{% endif %}">
+                                                        {{ req.get_status_display }}
+                                                    </span>
+                                                {% endwith %}
+                                            </td>
+                                            <td class="text-body-secondary small">{{ req.submitted_at|date:"Y-m-d H:i" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-3 text-body-secondary">
+                                <i class="bi bi-inbox display-6 opacity-50 d-block mb-1"></i>
+                                <p class="mb-0 small">No personal requests submitted yet.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <!-- Personal & Contact Details Card -->
+                <section class="card emp-card mb-3">
+                    <div class="card-header emp-card-header d-flex align-items-center justify-content-between">
+                        <h2 class="h6 fw-bold mb-0 text-dark">
+                            <i class="bi bi-person-lines-fill text-primary me-2"></i>Personal &amp; Contact Details
+                        </h2>
+                        <a href="{% url 'employees:employee-self-service-profile' %}" class="btn btn-outline-secondary btn-sm py-1 px-2 fw-semibold">
+                            <i class="bi bi-pencil-square me-1"></i>Edit
+                        </a>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row g-3">
+                            <!-- Left Sub-column: Personal -->
+                            <div class="col-12 col-md-6 border-end-md">
+                                <div class="emp-section-subhead mb-2">
+                                    <i class="bi bi-person text-secondary me-1"></i>Personal Information
+                                </div>
+                                <dl class="row mb-0 emp-dl">
+                                    <dt class="col-5">Employee ID</dt>
+                                    <dd class="col-7 fw-bold text-primary">{{ employee.employee_id }}</dd>
+                                    <dt class="col-5">Full Name</dt>
+                                    <dd class="col-7">{{ employee.full_name }}</dd>
+                                    <dt class="col-5">Preferred Name</dt>
+                                    <dd class="col-7">{{ employee.preferred_name|default:"—" }}</dd>
+                                    <dt class="col-5">Date of Birth</dt>
+                                    <dd class="col-7">{{ employee.date_of_birth|default:"—" }}</dd>
+                                    <dt class="col-5">Nationality</dt>
+                                    <dd class="col-7">{{ employee.nationality|default:"—" }}</dd>
+                                    <dt class="col-5">Gender</dt>
+                                    <dd class="col-7">{{ employee.get_gender_display|default:"—" }}</dd>
+                                </dl>
+                            </div>
+                            <!-- Right Sub-column: Contact -->
+                            <div class="col-12 col-md-6">
+                                <div class="emp-section-subhead mb-2">
+                                    <i class="bi bi-geo-alt text-secondary me-1"></i>Contact &amp; Address
+                                </div>
+                                <dl class="row mb-0 emp-dl">
+                                    <dt class="col-5">Phone</dt>
+                                    <dd class="col-7">{{ employee.personal_phone|default:"—" }}</dd>
+                                    <dt class="col-5">Email</dt>
+                                    <dd class="col-7">{{ employee.personal_email|default:"—" }}</dd>
+                                    <dt class="col-5">Address</dt>
+                                    <dd class="col-7">{{ employee.residential_address|default:"—" }}</dd>
+                                    <dt class="col-5">Municipality</dt>
+                                    <dd class="col-7">{{ employee.municipality|default:"—" }}</dd>
+                                    <dt class="col-5">Admin Post</dt>
+                                    <dd class="col-7">{{ employee.administrative_post|default:"—" }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Education & Emergency Contact Card -->
+                <section class="card emp-card mb-3">
+                    <div class="card-header emp-card-header d-flex align-items-center justify-content-between">
+                        <h2 class="h6 fw-bold mb-0 text-dark">
+                            <i class="bi bi-mortarboard-fill text-primary me-2"></i>Education, Qualifications &amp; Emergency
+                        </h2>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row g-3">
+                            <!-- Left Sub-column: Education -->
+                            <div class="col-12 col-md-6 border-end-md">
+                                <div class="emp-section-subhead mb-2">
+                                    <i class="bi bi-award text-secondary me-1"></i>Education &amp; Qualifications
+                                </div>
+                                <dl class="row mb-2 emp-dl">
+                                    <dt class="col-5">Level</dt>
+                                    <dd class="col-7">{{ employee.education_level|default:"—" }}</dd>
+                                    <dt class="col-5">Field</dt>
+                                    <dd class="col-7">{{ employee.field_of_study|default:"—" }}</dd>
+                                    <dt class="col-5">Other Certs</dt>
+                                    <dd class="col-7">{{ employee.certifications|default:"—"|linebreaksbr }}</dd>
+                                </dl>
+                                {% if profile_certifications %}
+                                    <div class="pt-2 border-top">
+                                        <span class="emp-info-label d-block mb-1">Uploaded Certificates:</span>
+                                        <ul class="list-group list-group-flush pt-1">
+                                            {% for certification in profile_certifications %}
+                                                <li class="list-group-item px-0 py-1 d-flex align-items-center justify-content-between gap-2 border-0">
+                                                    <div class="small text-truncate">
+                                                        <i class="bi bi-file-earmark-check text-success me-1"></i>
+                                                        <strong>{{ certification.certificate_name }}</strong>
+                                                        {% if certification.issuing_organization %}
+                                                            <span class="text-muted">· {{ certification.issuing_organization }}</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if certification.document_file %}
+                                                        <a class="btn btn-outline-primary btn-sm py-0 px-2 small flex-shrink-0" href="{% url 'employees:certification-download' certification.pk %}">
+                                                            <i class="bi bi-download me-1"></i>Download
+                                                        </a>
+                                                    {% endif %}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% else %}
+                                    <p class="text-body-secondary small mb-0 pt-1">No qualification certificates recorded.</p>
+                                {% endif %}
+                            </div>
+                            <!-- Right Sub-column: Family & Emergency Contact -->
+                            <div class="col-12 col-md-6">
+                                <div class="emp-section-subhead mb-2">
+                                    <i class="bi bi-heart-pulse text-danger me-1"></i>Family &amp; Emergency Contact
+                                </div>
+                                <dl class="row mb-0 emp-dl">
+                                    <dt class="col-5">Marital Status</dt>
+                                    <dd class="col-7">{{ employee.get_marital_status_display|default:"—" }}</dd>
+                                    <dt class="col-5">Contact Name</dt>
+                                    <dd class="col-7 fw-semibold">{{ employee.emergency_contact_name|default:"—" }}</dd>
+                                    <dt class="col-5">Relationship</dt>
+                                    <dd class="col-7">{{ employee.emergency_contact_relationship|default:"—" }}</dd>
+                                    <dt class="col-5">Phone</dt>
+                                    <dd class="col-7">{{ employee.emergency_contact_phone|default:"—" }}</dd>
+                                    <dt class="col-5">Address</dt>
+                                    <dd class="col-7">{{ employee.emergency_contact_address|default:"—" }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Employee ID Card & Quick Navigation -->
+            <div class="col-12 col-xl-4 col-lg-5">
+                <!-- Employee ID Card Widget -->
+                <section class="card emp-card mb-3 no-print">
+                    <div class="card-header emp-card-header d-flex justify-content-between align-items-center">
+                        <h2 class="h6 fw-bold mb-0 text-dark">
+                            <i class="bi bi-person-badge-fill text-primary me-2"></i>Employee ID Card
+                        </h2>
+                        {% if id_card.photo_url or id_card.qr_url or id_card.employee_id %}
+                            <button type="button" class="btn btn-outline-dark btn-sm py-1 px-2 fw-semibold" id="print-id-card" onclick="window.print()">
+                                <i class="bi bi-printer me-1" aria-hidden="true"></i>Print
+                            </button>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-3 d-flex justify-content-center align-items-center emp-id-card-container">
+                        {% if id_card.photo_url or id_card.qr_url or id_card.employee_id %}
+                            {% include "employees/_id_card.html" %}
+                        {% else %}
+                            <div class="text-center py-4 text-body-secondary">
+                                <i class="bi bi-badge-4k display-5 opacity-50 d-block mb-2"></i>
+                                <p class="mb-0 fw-semibold">No ID Card information available.</p>
+                                <p class="small mb-0">Your ID Card will appear here once your profile is complete.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <!-- Quick Navigation & Services Sidebar -->
+                <section class="card emp-card mb-3">
+                    <div class="card-header emp-card-header d-flex align-items-center">
+                        <h2 class="h6 fw-bold mb-0 text-dark">
+                            <i class="bi bi-grid-fill text-primary me-2"></i>Quick Navigation
+                        </h2>
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="list-group list-group-flush emp-quick-list">
+                            {% if perms.employee_requests.view_employeerequest %}
+                                <a href="{% url 'employee_requests:request-mine' %}" class="list-group-item list-group-item-action emp-quick-item d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="emp-quick-icon bg-primary-subtle text-primary">
+                                            <i class="bi bi-folder-check"></i>
+                                        </div>
+                                        <div>
+                                            <div class="emp-quick-title">My Requests</div>
+                                            <div class="emp-quick-desc">View submitted leave &amp; requests</div>
+                                        </div>
+                                    </div>
+                                    {% if pending_requests_count > 0 %}
+                                        <span class="badge rounded-pill bg-warning text-dark">{{ pending_requests_count }}</span>
+                                    {% else %}
+                                        <i class="bi bi-chevron-right text-muted small"></i>
+                                    {% endif %}
+                                </a>
+                            {% endif %}
+                            {% if perms.attendance.view_attendancerecord %}
+                                <a href="{% url 'attendance:history' %}" class="list-group-item list-group-item-action emp-quick-item d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="emp-quick-icon bg-success-subtle text-success">
+                                            <i class="bi bi-clock-history"></i>
+                                        </div>
+                                        <div>
+                                            <div class="emp-quick-title">Attendance History</div>
+                                            <div class="emp-quick-desc">Check your check-in records &amp; logs</div>
+                                        </div>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-muted small"></i>
+                                </a>
+                            {% endif %}
+                            {% if perms.employee_requests.view_notification %}
+                                <a href="{% url 'employee_requests:notification-list' %}" class="list-group-item list-group-item-action emp-quick-item d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="emp-quick-icon bg-info-subtle text-info">
+                                            <i class="bi bi-bell"></i>
+                                        </div>
+                                        <div>
+                                            <div class="emp-quick-title">Notifications</div>
+                                            <div class="emp-quick-desc">View approvals and system updates</div>
+                                        </div>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-muted small"></i>
+                                </a>
+                            {% endif %}
+                            <a href="{% url 'employees:employee-self-service-profile' %}" class="list-group-item list-group-item-action emp-quick-item d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="emp-quick-icon bg-secondary-subtle text-secondary">
+                                        <i class="bi bi-person-gear"></i>
+                                    </div>
+                                    <div>
+                                        <div class="emp-quick-title">Profile Settings</div>
+                                        <div class="emp-quick-desc">Update contact and personal info</div>
+                                    </div>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted small"></i>
+                            </a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    {% endif %}
+</div>

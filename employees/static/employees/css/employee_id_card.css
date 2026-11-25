@@ -1,0 +1,156 @@
+/* Employee ID Card: portrait CR80 (54 x 85.6 mm). Every size is in em, so the card
+   scales as a whole: 1em = 1/20 of the card width. Screen: 13.5px, print: 2.7mm.
+   Only non-sensitive data is ever rendered on it. */
+.employee-id-card {
+    --eid-red: #b5121b;
+    --eid-red-dark: #6f0a10;
+    --eid-yellow: #f5c400;
+    --eid-ink: #1c1c1e;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 20em;
+    height: 31.74em;            /* 85.6 / 54 * 20em */
+    margin: 0 auto;
+    font-size: 13.5px;
+    color: var(--eid-ink);
+    background: #fff;
+    border-radius: 1em;
+    overflow: hidden;
+    box-shadow: 0 0.6em 1.6em rgba(0, 0, 0, 0.22);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* ---- Header: institution (top) ---- */
+.employee-id-card-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+    height: 5.6em;
+    padding: 0.8em 1em;
+    color: #fff;
+    background: linear-gradient(135deg, var(--eid-red) 0%, var(--eid-red-dark) 100%);
+}
+.employee-id-card-header::after {      /* yellow accent line */
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 0.3em;
+    background: var(--eid-yellow);
+}
+.eid-logo {
+    flex: 0 0 3.8em;
+    width: 3.8em;
+    height: 3.8em;
+    padding: 0.2em;
+    border-radius: 50%;
+    background: #fff;
+    object-fit: contain;
+    box-shadow: 0 0 0 0.15em rgba(255, 255, 255, 0.35);
+}
+.eid-institution {
+    font-size: 0.78em;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.employee-id-card-header small {
+    display: block;
+    margin-top: 0.25em;
+    font-size: 0.6em;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--eid-yellow);
+}
+
+/* ---- Body: photo, then name / position / details ---- */
+.employee-id-card-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1em 1.2em 0;
+    min-height: 0;
+}
+.eid-photo {
+    flex: 0 0 auto;
+    width: 7.6em;
+    height: 9em;
+    overflow: hidden;
+    border: 0.25em solid var(--eid-yellow);
+    border-radius: 0.7em;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.18);
+}
+.eid-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.eid-photo-placeholder { font-size: 4em; color: #9aa0a6; }
+
+.eid-name {
+    margin-top: 0.7em;
+    font-size: 1.2em;
+    font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.eid-id {
+    margin-top: 0.35em;
+    padding: 0.2em 0.9em;
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #fff;
+    background: var(--eid-ink);
+    border-radius: 999px;
+}
+.eid-details { width: 100%; margin-top: 0.8em; }
+.eid-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8em;
+    padding: 0.28em 0;
+    font-size: 0.72em;
+    border-bottom: 1px solid #e3e5e8;
+}
+.eid-meta:last-child { border-bottom: 0; }
+.eid-meta span {
+    flex: 0 0 auto;
+    font-size: 0.85em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b7075;
+}
+.eid-meta strong { font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+
+/* ---- Footer: QR + flag-colour stripe ---- */
+.employee-id-card-footer {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    padding: 0.4em 0 0.7em;
+    position: relative;
+}
+.eid-qr {
+    width: 4.6em;
+    height: 4.6em;
+    padding: 0.2em;
+    background: #fff;
+    border: 1px solid #d8dbde;
+    border-radius: 0.4em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.eid-qr img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.eid-qr-placeholder { font-size: 0.5em; font-weight: 600; text-align: center; line-height: 1.15; color: #6b7075; }
+.employee-id-card::after {              /* bottom stripe: red / yellow / black */
+    content: "";
+    flex: 0 0 0.5em;
+    background: linear-gradient(90deg, var(--eid-red) 0 34%, var(--eid-yellow) 34% 67%, #111 67% 100%);
+}

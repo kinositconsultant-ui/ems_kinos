@@ -1,0 +1,379 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4">
+            <h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1>
+            <p class="text-body-secondary mb-0">Capture a single face and complete a basic browser challenge.</p>
+        </div>
+        <div class="card-body px-4">
+            {% if not engine_status.available %}
+                <div class="alert alert-warning d-flex gap-2" role="status">
+                    <i class="bi bi-exclamation-triangle-fill mt-1" aria-hidden="true"></i>
+                    <div>
+                        <strong>Enrollment is disabled.</strong>
+                        <p class="mb-0">{{ enrollment_disabled_reason }}</p>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info small mb-3" role="status">
+                    <strong>Backend status:</strong> YuNet + SFace are active. The face enrollment flow uses a development-grade browser challenge to confirm a single face is present while the user looks center, left, then right. This is not a certified anti-spoofing detector.
+                </div>
+            {% endif %}
+
+            {% if engine_status.error %}
+                <div class="alert alert-danger small mb-3" role="status"><strong>Backend status:</strong> {{ engine_status.error }}</div>
+            {% endif %}
+
+            {% if employees %}
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="border rounded-3 p-3">
+                            <label for="employee-select" class="form-label">Select employee</label>
+                            <select id="employee-select" class="form-select" {% if not engine_status.available %}disabled{% endif %}>
+                                {% for employee in employees %}
+                                    <option value="{{ employee.pk }}">{{ employee.employee_id }} — {{ employee.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="d-flex gap-2 mt-3 flex-wrap">
+                                <button id="start-camera-btn" type="button" class="btn btn-primary" {% if not engine_status.available %}disabled{% endif %}>Start camera</button>
+                                <button id="cancel-camera-btn" type="button" class="btn btn-outline-secondary">Cancel</button>
+                            </div>
+                            <div class="mt-3">
+                                <video id="camera-preview" class="w-100 rounded border bg-dark" autoplay playsinline muted style="max-height: 380px; object-fit: cover; display: none;"></video>
+                            </div>
+                            <div id="camera-status" class="small text-body-secondary mt-3" aria-live="polite"></div>
+                            <div class="d-flex gap-2 mt-3 flex-wrap">
+                                <button id="start-challenge-btn" type="button" class="btn btn-secondary" disabled>Start challenge</button>
+                                <button id="capture-frame-btn" type="button" class="btn btn-warning" disabled>Capture current step</button>
+                            </div>
+                            <div id="challenge-message" class="mt-3 small text-info"></div>
+                            <div id="capture-thumbnails" class="d-flex flex-wrap gap-2 mt-3">
+                                <div class="border rounded p-2 text-center" data-capture-slot="center">
+                                    <div class="small fw-semibold">Center</div>
+                                    <span class="small text-body-secondary" data-capture-status>Not accepted</span>
+                                </div>
+                                <div class="border rounded p-2 text-center" data-capture-slot="left">
+                                    <div class="small fw-semibold">Left</div>
+                                    <span class="small text-body-secondary" data-capture-status>Not accepted</span>
+                                </div>
+                                <div class="border rounded p-2 text-center" data-capture-slot="right">
+                                    <div class="small fw-semibold">Right</div>
+                                    <span class="small text-body-secondary" data-capture-status>Not accepted</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr><th>Employee</th><th>Enrollment status</th><th>Provider</th><th>Latest enrollment</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for employee in employees %}
+                                        <tr>
+                                            <td>{{ employee.employee_id }} · {{ employee.full_name }}</td>
+                                            <td>
+                                                {% with active_template=employee.face_templates.all|first %}
+                                                    {% if active_template %}
+                                                        <span class="badge text-bg-success">{{ active_template.get_status_display }}</span>
+                                                    {% else %}
+                                                        <span class="badge text-bg-secondary">Not enrolled</span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </td>
+                                            <td>
+                                                {% with active_template=employee.face_templates.all|first %}
+                                                    {{ active_template.provider|default:"—" }}
+                                                {% endwith %}
+                                            </td>
+                                            <td>
+                                                {% with active_template=employee.face_templates.all|first %}
+                                                    {{ active_template.enrolled_at|default:"—" }}
+                                                {% endwith %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <p class="small text-body-secondary mt-3 mb-0">Showing at most 100 employees. Use Employee List to find a specific employee.</p>
+            {% else %}
+                <div class="text-center border rounded-3 p-5">
+                    <i class="bi bi-person-bounding-box fs-2 text-body-secondary" aria-hidden="true"></i>
+                    <h2 class="h6 mt-2">No employees recorded</h2>
+                    <p class="small text-body-secondary mb-0">There are no employee records in the configured database, so there is no candidate list for enrollment in this deployment.</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        const employeeSelect = document.getElementById('employee-select');
+        const startCameraBtn = document.getElementById('start-camera-btn');
+        const cancelCameraBtn = document.getElementById('cancel-camera-btn');
+        const startChallengeBtn = document.getElementById('start-challenge-btn');
+        const captureFrameBtn = document.getElementById('capture-frame-btn');
+        const cameraStatus = document.getElementById('camera-status');
+        const challengeMessage = document.getElementById('challenge-message');
+        const captureThumbnails = document.getElementById('capture-thumbnails');
+        const video = document.getElementById('camera-preview');
+
+        let stream = null;
+        let challenge = null;
+        let capturedFrames = Object.create(null);
+        let cameraRequestId = 0;
+        const cameraEnabled = startCameraBtn && !startCameraBtn.disabled;
+
+        if (!startCameraBtn || !cancelCameraBtn || !startChallengeBtn || !captureFrameBtn ||
+            !cameraStatus || !challengeMessage || !captureThumbnails || !video) {
+            console.error('Face enrollment camera controls are missing from the page.');
+        } else {
+
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+                return '';
+            }
+
+            function setStatus(message, type = 'info') {
+                cameraStatus.textContent = message;
+                cameraStatus.className = `small mt-3 text-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'body-secondary'}`;
+            }
+
+            function resetChallengeState() {
+                challenge = null;
+                capturedFrames = Object.create(null);
+                if (employeeSelect) employeeSelect.disabled = false;
+                startChallengeBtn.disabled = !stream;
+                captureThumbnails.querySelectorAll('[data-capture-slot]').forEach((slot) => {
+                    const existingImage = slot.querySelector('img');
+                    if (existingImage) existingImage.remove();
+                    const status = slot.querySelector('[data-capture-status]');
+                    if (status) status.textContent = 'Not accepted';
+                });
+                challengeMessage.textContent = '';
+                captureFrameBtn.disabled = true;
+            }
+
+            function stopStream() {
+                cameraRequestId += 1;
+                if (stream) {
+                    stream.getTracks().forEach((track) => track.stop());
+                    stream = null;
+                }
+                video.srcObject = null;
+                video.style.display = 'none';
+                startCameraBtn.disabled = !cameraEnabled;
+                startChallengeBtn.disabled = true;
+                captureFrameBtn.disabled = true;
+            }
+
+            function cameraErrorMessage(error) {
+                if (error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+                    return 'Camera access was denied or blocked. Allow camera permission in your browser settings and try again.';
+                }
+                if (error && (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError')) {
+                    return 'No camera was found. Connect or enable a camera, then try again.';
+                }
+                if (error && (error.name === 'NotReadableError' || error.name === 'TrackStartError')) {
+                    return 'The camera could not be started. It may already be in use by another app or browser tab.';
+                }
+                if (error && error.name === 'OverconstrainedError') {
+                    return 'No camera can satisfy the requested video settings. Check the camera and try again.';
+                }
+                if (error && error.name === 'SecurityError') {
+                    return 'The browser blocked camera access. Use HTTPS or localhost and check the site permissions.';
+                }
+                return 'The camera could not be started. Check browser permissions and make sure the camera is available.';
+            }
+
+            async function startCamera() {
+                if (stream || startCameraBtn.disabled) {
+                    return;
+                }
+                if (!window.isSecureContext) {
+                    setStatus('Camera access requires a secure context. Open this site over HTTPS or use localhost.', 'error');
+                    return;
+                }
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setStatus('This browser does not provide camera access. Use a supported browser over HTTPS or localhost.', 'error');
+                    return;
+                }
+
+                resetChallengeState();
+                const requestId = ++cameraRequestId;
+                startCameraBtn.disabled = true;
+                setStatus('Requesting camera permission…', 'info');
+                try {
+                    const requestedStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'user' } },
+                        audio: false
+                    });
+                    if (requestId !== cameraRequestId) {
+                        requestedStream.getTracks().forEach((track) => track.stop());
+                        return;
+                    }
+
+                    stream = requestedStream;
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                    await video.play();
+                    startChallengeBtn.disabled = false;
+                    setStatus('Camera ready. Start the challenge to continue.', 'success');
+                } catch (error) {
+                    if (requestId !== cameraRequestId) {
+                        return;
+                    }
+                    stopStream();
+                    setStatus(cameraErrorMessage(error), 'error');
+                }
+            }
+
+            cancelCameraBtn.addEventListener('click', () => {
+                stopStream();
+                resetChallengeState();
+                setStatus('Camera stopped. Start the camera again when ready.', 'info');
+            });
+
+            startChallengeBtn.addEventListener('click', async () => {
+                const employeeId = employeeSelect.value;
+                if (!employeeId) {
+                    setStatus('Choose an employee before starting the challenge.', 'error');
+                    return;
+                }
+                try {
+                    const response = await fetch('{% url "attendance:face-enrollment-challenge" %}', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ employee_id: Number(employeeId) })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.ok) {
+                        throw new Error(data.error || 'Unable to start the liveness challenge.');
+                    }
+                    resetChallengeState();
+                    challenge = data;
+                    employeeSelect.disabled = true;
+                    challengeMessage.textContent = 'Center your face in the preview, then capture the center step.';
+                    captureFrameBtn.disabled = false;
+                    setStatus('Challenge started. Capture each step; the server validates it before advancing.', 'success');
+                } catch (error) {
+                    setStatus(error.message || 'Unable to start the liveness challenge.', 'error');
+                }
+            });
+
+            captureFrameBtn.addEventListener('click', async () => {
+                if (!challenge || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+                    !video.videoWidth || !video.videoHeight) {
+                    setStatus('Start the camera and challenge before capturing a frame.', 'error');
+                    return;
+                }
+                const step = challenge.next_step;
+                if (!step) {
+                    setStatus('The challenge has already completed.', 'info');
+                    return;
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                if (!context || canvas.width <= 0 || canvas.height <= 0) {
+                    setStatus('The current camera frame is not ready to capture. Wait a moment and try again.', 'error');
+                    return;
+                }
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const image = canvas.toDataURL('image/jpeg', 0.85);
+                if (!image.startsWith('data:image/jpeg;base64,') || image.endsWith(',')) {
+                    setStatus('The camera frame could not be encoded. Wait for the live preview and try again.', 'error');
+                    return;
+                }
+                captureFrameBtn.disabled = true;
+                startChallengeBtn.disabled = true;
+                setStatus(`Validating the ${step} frame…`, 'info');
+                try {
+                    const payload = {
+                        employee_id: Number(employeeSelect.value),
+                        challenge_id: challenge.challenge_id,
+                        capture: { step, image }
+                    };
+                    const response = await fetch('{% url "attendance:face-enrollment-submit" %}', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.ok) {
+                        throw new Error(data.error || `The ${step} frame was rejected.`);
+                    }
+
+                    if (!data.accepted || data.step !== step) {
+                        throw new Error('The server response did not confirm acceptance of the current challenge step.');
+                    }
+                    capturedFrames[step] = image;
+                    const slot = captureThumbnails.querySelector(`[data-capture-slot="${step}"]`);
+                    if (slot) {
+                        let preview = slot.querySelector('img');
+                        if (!preview) {
+                            preview = document.createElement('img');
+                            preview.style.cssText = 'display: block; width: 84px; height: 84px; object-fit: cover; border-radius: 6px; margin: 0.4rem auto 0;';
+                            slot.appendChild(preview);
+                        }
+                        preview.src = capturedFrames[step];
+                        preview.alt = `${step} challenge capture`;
+                        const slotStatus = slot.querySelector('[data-capture-status]');
+                        if (slotStatus) slotStatus.textContent = 'Accepted by server';
+                    }
+
+                    if (data.complete) {
+                        challenge.next_step = null;
+                        challengeMessage.textContent = 'Enrollment saved. The status list will refresh.';
+                        setStatus(data.message, 'success');
+                        stopStream();
+                        window.setTimeout(() => window.location.reload(), 1200);
+                    } else {
+                        challenge.next_step = data.next_step;
+                        const nextInstructions = {
+                            left: 'Turn your face until the nose shifts toward the left edge of the preview, then capture the left step.',
+                            right: 'Turn your face until the nose shifts toward the right edge of the preview, then capture the right step.'
+                        };
+                        challengeMessage.textContent = nextInstructions[data.next_step] || `Next step: ${data.next_step}.`;
+                        setStatus(data.message, 'success');
+                        captureFrameBtn.disabled = false;
+                        startChallengeBtn.disabled = false;
+                    }
+                } catch (error) {
+                    setStatus(error.message || `The ${step} frame was rejected. Capture a new frame and retry.`, 'error');
+                    captureFrameBtn.disabled = !challenge || !challenge.next_step;
+                    startChallengeBtn.disabled = !stream;
+                }
+            });
+
+            startCameraBtn.addEventListener('click', startCamera);
+            window.addEventListener('pagehide', stopStream, { once: true });
+            window.addEventListener('beforeunload', stopStream, { once: true });
+        }
+    </script>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% load static i18n component_tags adminlte %}
+{# The sidebar is suppressed in the Employee mobile area (mobile_employee_area):
+   the mobile shell provides its own self-service navigation and must never
+   inherit administrative menus from another group membership. #}
+{% if not mobile_employee_area %}
+<aside class="app-sidebar {{ adminlte.classes_sidebar }}"{% if adminlte.sidebar_theme == 'dark' %} data-bs-theme="dark"{% endif %}>
+    {# Brand #}
+    <div class="sidebar-brand {{ adminlte.classes_brand }}">
+        <a href="/" class="brand-link">
+            <img src="{% static 'employees/img/KINOS.png' %}"
+                 alt="KINOS Logo"
+                 class="brand-image">
+            <span class="brand-text {{ adminlte.classes_brand_text }}">{{ adminlte.logo_alt_text|default:"Employee Management" }}</span>
+        </a>
+    </div>
+
+    {# Menu #}
+<div class="sidebar-wrapper">
+    <nav class="mt-2" aria-label="{% trans 'Main navigation' %}">
+        <ul class="nav sidebar-menu flex-column {{ adminlte.classes_sidebar_nav }}"
+            data-lte-toggle="treeview"
+            data-accordion="false"
+            role="menu"
+            id="navigation">
+
+            {% for item in adminlte_menu_sidebar %}
+                {% if item.text != "Beranda" and item.text != "Dokumentasi" %}
+                    {% include "adminlte/partials/menu-item.html" with item=item %}
+                {% endif %}
+            {% endfor %}
+
+        </ul>
+
+        {% if adminlte.sidebar_docs_url %}
+
+        {% endif %}
+    </nav>
+</div>
+</aside>
+<script src="{% static 'core/js/sidebar-treeview.js' %}" defer></script>
+{% endif %}

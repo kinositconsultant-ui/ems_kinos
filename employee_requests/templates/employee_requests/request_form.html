@@ -1,0 +1,32 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ back_url }}">Requests</a></li><li class="breadcrumb-item active">{{ page_title }}</li>{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm"><div class="card-header bg-transparent border-0 pt-4 px-4"><h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1><p class="text-body-secondary mb-0">Completed requests cannot be edited. Provide genuine supporting details.</p></div><div class="card-body px-4"><form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}{% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}<div class="row g-3">{% for field in form %}<div class="col-12 {% if field.name == 'reason' or field.name == 'attachment' %}col-md-12{% else %}col-md-6{% endif %}" data-field="{{ field.name }}"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="text-danger"> *</span>{% endif %}</label>{{ field }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}{% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>{% endfor %}</div><div class="d-flex justify-content-end gap-2 mt-4"><a class="btn btn-outline-secondary" href="{{ back_url }}">Cancel</a><button class="btn btn-primary" type="submit">Submit request</button></div></form><script>
+(function() {
+  const typeSelect = document.querySelector('[name="request_type"]');
+  if (!typeSelect) return;
+  function toggle() {
+    const value = typeSelect.value;
+    const isLeave = value === 'leave' || value === 'absence_permission';
+    const isCorrection = value === 'attendance_correction';
+    const isHourly = value === 'late_arrival' || value === 'early_departure' || value === 'overtime';
+    document.querySelectorAll('[data-field]').forEach(function(div) {
+      const name = div.getAttribute('data-field');
+      let show = true;
+      if (name === 'duration_type' || name === 'leave_type') show = isLeave;
+      else if (name === 'attendance_record') show = isCorrection;
+      else if (name === 'requested_check_in_at' || name === 'requested_check_out_at') show = isCorrection || isHourly;
+      else if (name === 'start_date' || name === 'end_date') show = isLeave || isCorrection || value === 'business_trip';
+      div.style.display = show ? '' : 'none';
+    });
+  }
+  typeSelect.addEventListener('change', toggle);
+  toggle();
+})();
+</script>
+</div></section>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "adminlte/page.html" %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{{ back_url }}">Employees</a></li>
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <link rel="stylesheet" href="{% static 'employees/css/employee_id_card.css' %}">
+    <link rel="stylesheet" href="{% static 'employees/css/employee_form.css' %}">
+
+    <form method="post" enctype="multipart/form-data" novalidate id="employee-form" data-today="{{ today|date:'Y-m-d' }}">{% csrf_token %}
+        {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
+        {% if form.errors or cert_formset.has_any_errors %}
+            <div class="alert alert-danger py-2" role="alert">Please correct the highlighted fields. Sections that need attention are opened for you.</div>
+        {% endif %}
+
+        <div class="row g-3">
+            {# On small screens the preview comes first; on xl it sits on the right and stays in view. #}
+            <div class="col-xl-4 order-1 order-xl-2">
+                <div class="employee-preview-sticky">
+                    <div class="card border-primary shadow-sm employee-preview-card">
+                        <div class="card-header bg-primary-subtle border-0 py-2"><h2 class="h6 mb-0"><i class="bi bi-person-badge me-1" aria-hidden="true"></i>Live Employee ID Card Preview</h2></div>
+                        <div class="card-body">
+                            {% include "employees/_id_card.html" %}
+                            <p class="small text-body-secondary text-center mt-2 mb-0">Only name, ID, office, department, position, photo and QR appear on the card.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-8 order-2 order-xl-1">
+                <div class="accordion employee-form-accordion shadow-sm" id="employee-form-accordion">
+                    {% for section in sections %}
+                        <div class="accordion-item" id="section-{{ section.key }}">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button{% if not section.open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ section.key }}" aria-expanded="{% if section.open %}true{% else %}false{% endif %}" aria-controls="collapse-{{ section.key }}">
+                                    <i class="bi {{ section.icon }} me-2" aria-hidden="true"></i>{{ section.title }}
+                                    {% if section.has_errors %}<span class="badge text-bg-danger ms-2">Needs attention</span>{% endif %}
+                                </button>
+                            </h2>
+                            <div id="collapse-{{ section.key }}" class="accordion-collapse collapse{% if section.open %} show{% endif %}">
+                                <div class="accordion-body">
+                                    {% if section.key == "family" %}
+                                        <div id="spouse-hidden-notice" class="alert alert-info py-2 small d-none" data-has-stored="{% if stored_spouse %}1{% else %}0{% endif %}">
+                                            <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Spouse details are hidden for this marital status. Saved spouse information is kept (it is not deleted) and any unsaved spouse entries are ignored.
+                                        </div>
+                                    {% endif %}
+                                    <div class="row g-2">
+                                        {% for item in section.fields %}
+                                            <div class="{{ item.col }}"{% if item.group %} data-conditional="{{ item.group }}"{% endif %}>
+                                                {% if item.special == "contract_status" %}
+                                                    <span class="form-label d-block">Contract status</span>
+                                                    <span id="derived-contract-status" class="badge text-bg-secondary">{{ form.instance.derived_contract_status_label }}</span>
+                                                    <div class="form-text">Read-only. Calculated from employment status and contract dates.</div>
+                                                {% elif item.special == "certificates" %}
+                                                    <hr class="my-2">
+                                                    <h3 class="h6 mb-2"><i class="bi bi-patch-check me-1" aria-hidden="true"></i>Certificates &amp; qualification documents</h3>
+                                                    {% if cert_formset %}
+                                                        {{ cert_formset.management_form }}
+                                                        {% if cert_formset.non_form_errors %}<div class="alert alert-danger py-2 small">{{ cert_formset.non_form_errors }}</div>{% endif %}
+                                                        {% if cert_formset.has_any_errors %}<p class="small text-warning-emphasis">If a row has an error, select its document file again before saving.</p>{% endif %}
+                                                        <div id="certificate-list" data-prefix="{{ cert_formset.prefix }}" data-max="25" data-max-bytes="10485760" data-allowed-ext=".pdf,.jpg,.jpeg,.png,.webp">
+                                                            {% for cform in cert_formset %}{% include "employees/_certificate_form.html" %}{% endfor %}
+                                                        </div>
+                                                        <p id="certificate-empty" class="text-body-secondary small{% if cert_formset.forms %} d-none{% endif %}">No certificates recorded yet.</p>
+                                                        {% if cert_perms.add %}
+                                                            <button type="button" id="add-certificate" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i><span data-label>Add Certificate</span></button>
+                                                            <template id="certificate-empty-form">{% include "employees/_certificate_form.html" with cform=cert_formset.empty_form %}</template>
+                                                        {% endif %}
+                                                    {% elif existing_certifications %}
+                                                        <ul class="list-group list-group-flush small">
+                                                            {% for cert in existing_certifications %}
+                                                                <li class="list-group-item px-0">{{ cert.certificate_name }}{% if cert.issuing_organization %} &middot; {{ cert.issuing_organization }}{% endif %}
+                                                                    {% if cert.document_file %}&middot; <a href="{% url 'employees:certification-download' cert.pk %}" target="_blank" rel="noopener">{{ cert.display_filename }}</a>{% endif %}</li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                        <p class="small text-body-secondary mt-2 mb-0">You can view certificates but do not have permission to change them.</p>
+                                                    {% else %}
+                                                        <p class="text-body-secondary small mb-0">{% if object.pk %}No certificates to show, or you do not have permission to manage them.{% else %}Certificates can be added when you have the required permission.{% endif %}</p>
+                                                    {% endif %}
+                                                {% else %}
+                                                    {% include "employees/_form_field.html" with field=item.bf %}
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <a class="btn btn-outline-secondary" href="{{ back_url }}">Cancel</a>
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Save employee</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <script src="{% static 'employees/js/employee_form.js' %}"></script>
+{% endblock %}

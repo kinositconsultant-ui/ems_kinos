@@ -1,0 +1,1 @@
+"""Employee business services (contract-based automatic scheduling)."""

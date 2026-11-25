@@ -1,0 +1,184 @@
+{% extends "adminlte/page.html" %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'employees:employee-list' %}">Employees</a></li>
+    <li class="breadcrumb-item active">{{ object.employee_id }}</li>
+{% endblock %}
+
+{% block content %}
+    <link rel="stylesheet" href="{% static 'employees/css/employee_id_card.css' %}">
+    <link rel="stylesheet" href="{% static 'employees/css/employee_id_card_print.css' %}" media="print">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3 no-print">
+        <div>
+            <h1 class="h3 fw-semibold mb-1">{{ object.full_name }}</h1>
+            <p class="text-body-secondary mb-0">{{ object.employee_id }} &middot; {{ object.get_employment_status_display }}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-outline-secondary" href="{% url 'employees:employee-list' %}">Back to list</a>
+            {% if can_edit %}<a class="btn btn-primary" href="{% url 'employees:employee-update' object.pk %}">Edit</a>{% endif %}
+            {% if can_deactivate %}<a class="btn btn-outline-danger" href="{{ deactivate_url }}"><i class="bi bi-person-x me-1" aria-hidden="true"></i>Deactivate</a>{% endif %}
+            {% if can_add_assignment %}<a class="btn btn-outline-primary" href="{% url 'employees:assignment-create' %}?employee={{ object.pk }}">New assignment</a>{% endif %}
+            <button type="button" class="btn btn-outline-dark" id="print-id-card" onclick="window.print()"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print ID Card</button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-7 no-print">
+            <section class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent"><h2 class="h5 mb-0">Personal & employment information</h2></div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5 text-body-secondary">Employee ID</dt><dd class="col-sm-7">{{ object.employee_id }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Full name</dt><dd class="col-sm-7">{{ object.full_name }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Preferred name</dt><dd class="col-sm-7">{{ object.preferred_name|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Photo</dt><dd class="col-sm-7">{% if object.photo %}<img src="{{ object.photo.url }}" alt="{{ object.full_name }}" class="img-thumbnail" style="max-width: 100px;">{% else %}No photo uploaded{% endif %}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Date of birth</dt><dd class="col-sm-7">{{ object.date_of_birth|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Place of birth</dt><dd class="col-sm-7">{{ object.place_of_birth|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Nationality</dt><dd class="col-sm-7">{{ object.nationality|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Identity document</dt><dd class="col-sm-7">{{ object.get_identity_type_display|default:"—" }} / {{ object.identity_number|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Work email</dt><dd class="col-sm-7">{{ object.work_email|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Personal phone</dt><dd class="col-sm-7">{{ object.personal_phone|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Personal email</dt><dd class="col-sm-7">{{ object.personal_email|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Residential address</dt><dd class="col-sm-7">{{ object.residential_address|default:"—" }}</dd>
+                    </dl>
+                </div>
+            </section>
+
+            <section class="card border-0 shadow-sm mb-4 no-print">
+                <div class="card-header bg-transparent"><h2 class="h5 mb-0">Family & emergency contact</h2></div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5 text-body-secondary">Marital status</dt><dd class="col-sm-7">{{ object.get_marital_status_display|default:"—" }}</dd>
+                        {% if show_spouse %}
+                        <dt class="col-sm-5 text-body-secondary">Spouse name</dt><dd class="col-sm-7">{{ object.spouse_name|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Spouse phone</dt><dd class="col-sm-7">{{ object.spouse_phone|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Spouse email</dt><dd class="col-sm-7">{{ object.spouse_email|default:"—" }}</dd>
+                        {% endif %}
+                        <dt class="col-sm-5 text-body-secondary">Emergency contact</dt><dd class="col-sm-7">{{ object.emergency_contact_name|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Relationship</dt><dd class="col-sm-7">{{ object.emergency_contact_relationship|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Emergency phone</dt><dd class="col-sm-7">{{ object.emergency_contact_phone|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Alternative phone</dt><dd class="col-sm-7">{{ object.emergency_contact_alternative_phone|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Emergency address</dt><dd class="col-sm-7">{{ object.emergency_contact_address|default:"—" }}</dd>
+                    </dl>
+                </div>
+            </section>
+
+            <section class="card border-0 shadow-sm mb-4 no-print">
+                <div class="card-header bg-transparent"><h2 class="h5 mb-0">Employment & contract</h2></div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5 text-body-secondary">Hire date</dt><dd class="col-sm-7">{{ object.hire_date|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Employment type</dt><dd class="col-sm-7">{{ object.get_employment_type_display }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Employment status</dt><dd class="col-sm-7">{{ object.get_employment_status_display }}</dd>
+                        {% if object.employment_status == "terminated" %}
+                        <dt class="col-sm-5 text-body-secondary">Termination date</dt><dd class="col-sm-7">{{ object.termination_date|default:"—" }}</dd>
+                        {% endif %}
+                        <dt class="col-sm-5 text-body-secondary">Contract number</dt><dd class="col-sm-7">{{ object.contract_number|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Contract period</dt><dd class="col-sm-7">{{ object.contract_start_date|default:"—" }} – {{ object.contract_end_date|default:"Open-ended" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Contract status</dt>
+                        <dd class="col-sm-7"><span id="contract-status" class="badge {% if contract_status_code == 'active' %}text-bg-success{% elif contract_status_code == 'expired' %}text-bg-warning{% elif contract_status_code == 'upcoming' %}text-bg-info{% elif contract_status_code == 'terminated' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">{{ contract_status_label }}</span></dd>
+                        <dt class="col-sm-5 text-body-secondary">Notes</dt><dd class="col-sm-7" style="white-space: pre-line;">{{ object.notes|default:"—" }}</dd>
+                    </dl>
+                </div>
+            </section>
+
+            <section class="card border-0 shadow-sm mb-4 no-print">
+                <div class="card-header bg-transparent"><h2 class="h5 mb-0">Education & qualifications</h2></div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5 text-body-secondary">Education level</dt><dd class="col-sm-7">{{ object.education_level|default:"—" }}</dd>
+                        <dt class="col-sm-5 text-body-secondary">Field of study</dt><dd class="col-sm-7">{{ object.field_of_study|default:"—" }}</dd>
+                        {% if object.certifications %}<dt class="col-sm-5 text-body-secondary">Other qualifications</dt><dd class="col-sm-7" style="white-space: pre-line;">{{ object.certifications }}</dd>{% endif %}
+                    </dl>
+                    {% if can_view_certificates %}
+                        <h3 class="h6 mt-3">Certificates</h3>
+                        {% if certifications %}
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0" id="certificate-table">
+                                    <thead><tr><th>Certificate</th><th>Issuer</th><th>Issued</th><th>Expires</th><th>Document</th></tr></thead>
+                                    <tbody>
+                                    {% for cert in certifications %}
+                                        <tr>
+                                            <td>{{ cert.certificate_name }}{% if cert.certificate_number %}<div class="small text-body-secondary">{{ cert.certificate_number }}</div>{% endif %}</td>
+                                            <td>{{ cert.issuing_organization|default:"—" }}</td>
+                                            <td>{{ cert.issue_date|default:"—" }}</td>
+                                            <td>{{ cert.expiry_date|default:"—" }}{% if cert.is_expired %} <span class="badge text-bg-warning">Expired</span>{% endif %}</td>
+                                            <td>{% if cert.document_file %}<a href="{% url 'employees:certification-download' cert.pk %}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>{{ cert.display_filename }}</a>{% else %}—{% endif %}</td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-body-secondary mb-0">No certificates recorded.</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent"><h2 class="h5 mb-0">Current assignment</h2></div>
+                <div class="card-body">
+                    {% for assignment in current_assignments %}
+                        <p class="mb-1 fw-semibold">{{ assignment.position.position_title }}</p>
+                        <p class="text-body-secondary">{{ assignment.position.office.office_name }}{% if assignment.position.department %} · {{ assignment.position.department.department_name }}{% endif %}</p>
+                    {% empty %}
+                        <p class="text-body-secondary mb-0">No current primary assignment is recorded.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent"><h2 class="h5 mb-0">Assignment history</h2></div>
+                <div class="card-body">
+                    {% if assignments %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead><tr><th>Position</th><th>Office</th><th>Type</th><th>Period</th><th>Primary</th><th></th></tr></thead>
+                                <tbody>
+                                {% for assignment in assignments %}
+                                    <tr>
+                                        <td>{{ assignment.position.position_title }}</td>
+                                        <td>{{ assignment.position.office.office_name }}</td>
+                                        <td>{{ assignment.get_assignment_type_display }}</td>
+                                        <td>{{ assignment.start_date }} – {{ assignment.end_date|default:"Present" }}</td>
+                                        <td>{{ assignment.is_primary|yesno:"Yes,No" }}</td>
+                                        <td><a href="{% url 'employees:assignment-detail' assignment.pk %}">Details</a></td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-body-secondary mb-0">No assignment history yet.</p>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+
+        <div class="col-xl-5">
+            <section class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent no-print"><h2 class="h5 mb-0">Employee ID Card</h2></div>
+                <div class="card-body">
+                    {% include "employees/_id_card.html" %}
+                </div>
+            </section>
+
+            <section class="card border-0 shadow-sm no-print">
+                <div class="card-header bg-transparent"><h2 class="h5 mb-0">Face enrollment status</h2></div>
+                <div class="card-body">
+                    {% for template in face_templates %}
+                        <p class="mb-1">{{ template.get_status_display }}</p>
+                        <p class="small text-body-secondary">{{ template.provider }} · {{ template.enrolled_at }}</p>
+                    {% empty %}
+                        <p class="text-body-secondary mb-0">No enrollment record.</p>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+
+{% endblock %}

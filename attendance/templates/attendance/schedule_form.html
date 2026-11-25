@@ -1,0 +1,169 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{{ back_url }}">Employee Schedules</a></li>
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <div class="alert alert-info py-2" role="note"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+        You do <strong>not</strong> type start or end times. Choose the office, employee, shift and work date; the planned start, break and end times are taken from the shift and shown in the preview.
+        They are planned times, not attendance records.</div>
+    {% for note in historical_notes %}<div class="alert alert-secondary py-2" role="note"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>{{ note }}</div>{% endfor %}
+    {% if holiday_notice %}<div class="alert alert-warning" role="alert"><i class="bi bi-exclamation-triangle me-1"></i>
+        <strong>Holiday warning.</strong> The selected date is a holiday:
+        {% for holiday in holiday_notice %}{{ holiday.name }} ({{ holiday.scope_label }}){% if not forloop.last %}, {% endif %}{% endfor %}.
+        You can still save: scheduling work on a holiday is allowed.</div>{% endif %}
+    <form method="post" novalidate>{% csrf_token %}
+    <div class="row g-3">
+        <div class="col-12 col-xl-7">
+            <section class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-transparent border-0 pt-4 px-4"><h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1><p class="text-body-secondary mb-0">Fields are validated against the current office and assignment rules.</p></div>
+                <div class="card-body px-4">
+                    {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+                    {% if summary_rows %}<div class="card border-primary mb-4"><div class="card-header bg-primary-subtle fw-semibold">Summary &mdash; nothing is saved yet. Check it, then press Save.</div>
+                        <dl class="row mb-0 p-3">{% for label, value in summary_rows %}<dt class="col-sm-4">{{ label }}</dt><dd class="col-sm-8 mb-1">{{ value }}</dd>{% endfor %}</dl></div>{% endif %}
+                    <div class="row g-3">{% for field in form %}<div class="col-12 col-md-6">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="text-danger"> *</span>{% endif %}</label>{{ field }}
+                        {% if field.help_text %}<div class="form-text" id="{{ field.id_for_label }}_helptext">{{ field.help_text }}</div>{% endif %}
+                        {% if field.name == "employee_assignment" or field.name == "shift" %}<div class="form-text fw-semibold" data-select-message="{{ field.name }}" aria-live="polite"></div>{% endif %}
+                        {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>{% endfor %}</div>
+                </div>
+                <div class="card-footer bg-transparent border-0 px-4 pb-4 d-flex justify-content-end gap-2">
+                    <a class="btn btn-outline-secondary" href="{{ back_url }}">Cancel</a>{% if show_preview %}<button class="btn btn-outline-primary" type="submit" name="action" value="preview">Preview summary</button>{% endif %}<button class="btn btn-primary" type="submit" name="action" value="save">Save</button>
+                </div>
+            </section>
+        </div>
+        <div class="col-12 col-xl-5">
+            <section class="card border-0 shadow-sm h-100" id="schedule-preview" data-url="{{ preview_url }}" data-schedule-id="{{ schedule_pk }}" aria-live="polite">
+                <div class="card-header bg-transparent border-0 pt-4 px-4"><h2 class="h5 fw-semibold mb-1">Schedule preview</h2><p class="small text-body-secondary mb-0">Planned times only. Updates when you change the office, employee, shift or work date.</p></div>
+                <div class="card-body px-4">
+                    <div id="preview-status" class="text-body-secondary">Choose office, employee, shift and work date to see the planned times.</div>
+                    <div id="preview-holiday" class="alert alert-warning py-2 d-none" role="alert"></div>
+                    <div id="preview-warnings"></div>
+                    <dl id="preview-rows" class="row mb-0 d-none"></dl>
+                </div>
+            </section>
+        </div>
+    </div>
+    </form>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        (() => {
+            const byId = (id) => document.getElementById(id);
+            const office = byId('id_office'), employee = byId('id_employee_assignment'), shift = byId('id_shift'), workDate = byId('id_work_date');
+            const box = byId('schedule-preview');
+            if (!office || !employee || !shift || !workDate || !box) return;
+            const status = byId('preview-status'), rows = byId('preview-rows'), holiday = byId('preview-holiday'), warnings = byId('preview-warnings');
+
+            function note(select, text, tone) {
+                const el = document.querySelector('[data-select-message="' + select.name + '"]');
+                if (!el) return;
+                el.textContent = text;
+                el.className = 'form-text fw-semibold ' + (tone === 'warn' ? 'text-warning-emphasis' : 'text-body-secondary');
+            }
+
+            // Employee and Shift follow the office. Options come from the server (so Edit keeps its saved values);
+            // the server validates the final choice again on save.
+            function refresh(select, label) {
+                const placeholder = select.options[0] && !select.options[0].value ? select.options[0] : null;
+                if (!office.value) {
+                    Array.from(select.options).forEach((o) => { if (o.value) { o.hidden = true; o.disabled = true; } });
+                    select.value = '';
+                    if (placeholder) placeholder.textContent = select.dataset.lockedText;
+                    select.disabled = true;
+                    note(select, 'Select an office first.', 'info');
+                    return;
+                }
+                let available = 0;
+                Array.from(select.options).forEach((o) => {
+                    if (!o.value) return;
+                    const inOffice = o.dataset.office === office.value;
+                    o.hidden = !inOffice;
+                    o.disabled = !inOffice || o.dataset.unavailable === '1';
+                    if (inOffice && o.dataset.unavailable !== '1') available += 1;
+                });
+                const current = select.options[select.selectedIndex];
+                if (current && current.value && current.dataset.office !== office.value) select.value = '';
+                if (available === 0) {
+                    select.disabled = true;
+                    if (placeholder) placeholder.textContent = select.dataset.noneText;
+                    note(select, select.dataset.noneText, 'warn');
+                } else {
+                    select.disabled = false;
+                    if (placeholder) placeholder.textContent = select.dataset.emptyText;
+                    note(select, available + ' ' + label + (available === 1 ? '' : 's') + ' available for this office.', 'info');
+                }
+            }
+            function refreshAll() { refresh(employee, 'employee'); refresh(shift, 'shift'); }
+
+            function addRow(label, value) {
+                const dt = document.createElement('dt'); dt.className = 'col-sm-5 text-body-secondary'; dt.textContent = label;
+                const dd = document.createElement('dd'); dd.className = 'col-sm-7'; dd.textContent = value;
+                rows.append(dt, dd);
+            }
+            function idle(message) {
+                rows.classList.add('d-none'); rows.replaceChildren(); holiday.classList.add('d-none'); warnings.replaceChildren();
+                status.className = 'text-body-secondary'; status.textContent = message; status.classList.remove('d-none');
+            }
+            function failure(messages) {
+                idle('');
+                status.className = 'alert alert-danger py-2';
+                status.replaceChildren(...messages.map((m) => { const p = document.createElement('div'); p.textContent = m; return p; }));
+            }
+
+            let timer = null, controller = null;
+            function queue() { clearTimeout(timer); timer = setTimeout(load, 250); }
+            async function load() {
+                if (!(office.value && employee.value && shift.value && workDate.value)) {
+                    if (controller) controller.abort();
+                    idle('Choose office, employee, shift and work date to see the planned times.');
+                    return;
+                }
+                if (controller) controller.abort();
+                controller = new AbortController();
+                idle('Loading preview\u2026');
+                const params = new URLSearchParams({ office: office.value, employee_assignment: employee.value, shift: shift.value, work_date: workDate.value });
+                if (box.dataset.scheduleId) params.set('schedule', box.dataset.scheduleId);
+                try {
+                    const response = await fetch(box.dataset.url + '?' + params.toString(), { headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: controller.signal });
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    const data = await response.json();
+                    if (!data.ok) { data.incomplete ? idle(data.message) : failure(data.errors || ['The preview is not available.']); return; }
+                    idle(''); status.classList.add('d-none'); rows.replaceChildren();
+                    const p = data.preview;
+                    [['Employee ID', p.employee_id], ['Employee name', p.employee_name], ['Office / Branch', p.office], ['Position / assignment', p.position],
+                     ['Shift', p.shift], ['Work date', p.work_date], ['Scheduled start', p.scheduled_start], ['Scheduled break start', p.scheduled_break_start],
+                     ['Scheduled break end', p.scheduled_break_end], ['Scheduled end', p.scheduled_end], ['Break duration', p.break_duration],
+                     ['Scheduled work duration', p.work_duration], ['Required attendance sequence', p.sequence.join(' \u2192 ')]].forEach(([l, v]) => addRow(l, v));
+                    rows.classList.remove('d-none');
+                    const origin = document.createElement('div');
+                    origin.className = 'small text-body-secondary mt-2';
+                    origin.textContent = data.source === 'saved'
+                        ? 'Showing the times frozen when this schedule was saved. Changing the shift or date will re-freeze them from the shift when you save.'
+                        : 'Times are built from the shift for this date and frozen when you save. Nothing is saved yet.';
+                    warnings.append(origin);
+                    if (data.holidays && data.holidays.length) {
+                        holiday.textContent = 'Holiday warning: ' + data.holidays.map((h) => h.name + ' (' + h.scope + ')').join(', ') + '. You can still save; working on a holiday is allowed.';
+                        holiday.classList.remove('d-none');
+                    }
+                    (data.warnings || []).forEach((w) => { const a = document.createElement('div'); a.className = 'alert alert-warning py-2 mt-2'; a.textContent = w; warnings.append(a); });
+                } catch (error) {
+                    if (error.name === 'AbortError') return;
+                    failure(['The preview could not be loaded. Check your connection and change a field to try again. You can still save; the server checks everything.']);
+                }
+            }
+
+            office.addEventListener('change', () => { refreshAll(); queue(); });
+            [employee, shift, workDate].forEach((el) => el.addEventListener('change', queue));
+            refreshAll();
+            load();
+        })();
+    </script>
+{% endblock %}

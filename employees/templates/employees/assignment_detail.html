@@ -1,0 +1,25 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'employees:employee-list' %}">Assignments</a></li>
+    <li class="breadcrumb-item active">{{ object.employee.employee_id }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-start gap-3"><div><h1 class="h4 fw-semibold mb-1">{{ object.employee.full_name }}</h1><p class="text-body-secondary mb-0">{{ object.employee.employee_id }} · {{ object.position.position_title }}</p></div><div class="d-flex gap-2"><a class="btn btn-outline-secondary" href="{% url 'employees:employee-list' %}">Back</a>{% if can_edit %}<a class="btn btn-primary" href="{% url 'employees:assignment-update' object.pk %}">Edit assignment</a>{% endif %}</div></div>
+        <div class="card-body px-4"><dl class="row mb-0">
+            <dt class="col-sm-4 text-body-secondary py-2">Position</dt><dd class="col-sm-8 py-2">{{ object.position.position_title }} ({{ object.position.position_code }})</dd>
+            <dt class="col-sm-4 text-body-secondary py-2">Office</dt><dd class="col-sm-8 py-2">{{ object.position.office.office_name }}</dd>
+            <dt class="col-sm-4 text-body-secondary py-2">Department</dt><dd class="col-sm-8 py-2">{{ object.position.department|default:"—" }}</dd>
+            <dt class="col-sm-4 text-body-secondary py-2">Assignment type</dt><dd class="col-sm-8 py-2">{{ object.get_assignment_type_display }}</dd>
+            <dt class="col-sm-4 text-body-secondary py-2">Start date</dt><dd class="col-sm-8 py-2">{{ object.start_date }}</dd>
+            <dt class="col-sm-4 text-body-secondary py-2">End date</dt><dd class="col-sm-8 py-2">{{ object.end_date|default:"Present" }}</dd>
+            <dt class="col-sm-4 text-body-secondary py-2">Primary</dt><dd class="col-sm-8 py-2">{{ object.is_primary|yesno:"Yes,No" }}</dd>
+            <dt class="col-sm-4 text-body-secondary py-2">Assigned by</dt><dd class="col-sm-8 py-2">{{ object.assigned_by|default:"—" }}</dd>
+            <dt class="col-sm-4 text-body-secondary py-2">Reason</dt><dd class="col-sm-8 py-2">{{ object.assignment_reason|default:"—" }}</dd>
+        </dl></div>
+    </section>
+{% endblock %}

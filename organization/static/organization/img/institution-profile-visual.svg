@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Institutional technology illustration" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef4fb"/>
+      <stop offset="100%" stop-color="#dbe7f5"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="soft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="1000" fill="url(#bg)"/>
+
+  <!-- abstract campus blocks -->
+  <g opacity="0.9">
+    <rect x="90" y="620" width="180" height="260" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+    <rect x="300" y="560" width="220" height="320" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+    <rect x="550" y="640" width="160" height="240" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  </g>
+
+  <!-- windows -->
+  <g fill="#dbeafe">
+    <rect x="115" y="650" width="30" height="24" rx="4"/>
+    <rect x="160" y="650" width="30" height="24" rx="4"/>
+    <rect x="205" y="650" width="30" height="24" rx="4"/>
+    <rect x="115" y="690" width="30" height="24" rx="4"/>
+    <rect x="160" y="690" width="30" height="24" rx="4"/>
+    <rect x="205" y="690" width="30" height="24" rx="4"/>
+
+    <rect x="330" y="600" width="34" height="28" rx="4"/>
+    <rect x="382" y="600" width="34" height="28" rx="4"/>
+    <rect x="434" y="600" width="34" height="28" rx="4"/>
+    <rect x="330" y="645" width="34" height="28" rx="4"/>
+    <rect x="382" y="645" width="34" height="28" rx="4"/>
+    <rect x="434" y="645" width="34" height="28" rx="4"/>
+    <rect x="330" y="690" width="34" height="28" rx="4"/>
+    <rect x="382" y="690" width="34" height="28" rx="4"/>
+    <rect x="434" y="690" width="34" height="28" rx="4"/>
+
+    <rect x="575" y="675" width="28" height="22" rx="4"/>
+    <rect x="620" y="675" width="28" height="22" rx="4"/>
+    <rect x="665" y="675" width="28" height="22" rx="4"/>
+    <rect x="575" y="712" width="28" height="22" rx="4"/>
+    <rect x="620" y="712" width="28" height="22" rx="4"/>
+    <rect x="665" y="712" width="28" height="22" rx="4"/>
+  </g>
+
+  <!-- network nodes / ICT motifs -->
+  <g>
+    <circle cx="400" cy="260" r="92" fill="url(#accent)" opacity="0.12"/>
+    <circle cx="400" cy="260" r="62" fill="url(#accent)" opacity="0.18"/>
+    <circle cx="400" cy="260" r="34" fill="url(#accent)"/>
+    <g fill="#ffffff">
+      <rect x="388" y="248" width="24" height="24" rx="4"/>
+    </g>
+  </g>
+
+  <!-- orbiting nodes -->
+  <g stroke="#2563eb" stroke-width="2" fill="#ffffff">
+    <line x1="400" y1="260" x2="250" y2="180"/>
+    <line x1="400" y1="260" x2="560" y2="170"/>
+    <line x1="400" y1="260" x2="230" y2="360"/>
+    <line x1="400" y1="260" x2="580" y2="360"/>
+    <circle cx="250" cy="180" r="18"/>
+    <circle cx="560" cy="170" r="18"/>
+    <circle cx="230" cy="360" r="18"/>
+    <circle cx="580" cy="360" r="18"/>
+  </g>
+  <g fill="#2563eb">
+    <circle cx="250" cy="180" r="6"/>
+    <circle cx="560" cy="170" r="6"/>
+    <circle cx="230" cy="360" r="6"/>
+    <circle cx="580" cy="360" r="6"/>
+  </g>
+
+  <!-- data streams -->
+  <g stroke="#93c5fd" stroke-width="3" fill="none" opacity="0.7">
+    <path d="M120 470 C260 430, 340 500, 400 420"/>
+    <path d="M680 470 C540 430, 460 500, 400 420"/>
+  </g>
+
+  <!-- ground -->
+  <rect x="0" y="880" width="800" height="120" fill="#cbd5e1" opacity="0.5"/>
+  <rect x="0" y="900" width="800" height="100" fill="#94a3b8" opacity="0.25"/>
+</svg>

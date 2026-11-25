@@ -1,0 +1,32 @@
+<div class="certificate-item border rounded p-2 mb-2" data-certificate-item{% if not cform.instance.pk %} data-new-item{% endif %}>
+    {% for hidden in cform.hidden_fields %}{{ hidden }}{% endfor %}
+    {% if cform.non_field_errors %}<div class="alert alert-danger py-1 small">{{ cform.non_field_errors }}</div>{% endif %}
+    <div class="row g-2">
+        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=cform.certificate_name %}</div>
+        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=cform.issuing_organization %}</div>
+        <div class="col-12 col-md-4">{% include "employees/_form_field.html" with field=cform.certificate_number %}</div>
+        <div class="col-6 col-md-4">{% include "employees/_form_field.html" with field=cform.issue_date %}</div>
+        <div class="col-6 col-md-4">{% include "employees/_form_field.html" with field=cform.expiry_date %}</div>
+        <div class="col-12 col-md-6">
+            {% include "employees/_form_field.html" with field=cform.document_file %}
+            <div class="invalid-feedback d-none" data-file-error></div>
+            {% if cform.instance.pk and cform.instance.document_file %}
+                <div class="form-text">
+                    Saved document:
+                    {% if cert_perms.view %}<a href="{% url 'employees:certification-download' cform.instance.pk %}" target="_blank" rel="noopener">{{ cform.instance.display_filename }}</a>{% else %}{{ cform.instance.display_filename }}{% endif %}
+                    &middot; choose a new file only to replace it.
+                </div>
+            {% endif %}
+        </div>
+        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=cform.notes %}</div>
+    </div>
+    <div class="mt-2 text-end">
+        {% if cform.instance.pk %}
+            {% if cert_formset.can_delete_certificates and cform.DELETE %}
+                <div class="form-check d-inline-block text-danger small">{{ cform.DELETE }} <label class="form-check-label" for="{{ cform.DELETE.id_for_label }}">Delete this certificate and its document</label></div>
+            {% endif %}
+        {% else %}
+            <button type="button" class="btn btn-sm btn-outline-danger" data-remove-certificate><i class="bi bi-trash me-1" aria-hidden="true"></i>Remove</button>
+        {% endif %}
+    </div>
+</div>

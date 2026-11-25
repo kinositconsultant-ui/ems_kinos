@@ -1,0 +1,151 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <h1 class="h4 fw-semibold mb-3">{{ page_title }}</h1>
+    <p class="text-body-secondary mb-4">
+        Diagnostik kehadiran bersifat hanya-baca. Halaman ini mencatat kegagalan verifikasi wajah
+        (tidak cocok / tidak konklusif) dan kegagalan penyimpanan kehadiran dalam cakupan yang diizinkan.
+        Tidak ada tindakan persetujuan atau revisi yang tersedia dari halaman ini.
+    </p>
+
+    <form method="get" class="row g-3 mb-4 align-items-end">
+        <div class="col-md-2">
+            <label class="form-label visually-hidden">From</label>
+            <input type="date" name="start_date" value="{{ start_date }}" class="form-control">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label visually-hidden">To</label>
+            <input type="date" name="end_date" value="{{ end_date }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label visually-hidden">Employee</label>
+            <select name="employee" class="form-select">
+                <option value="">All employees</option>
+                {% for item in employee_choices %}
+                    <option value="{{ item.id }}" {% if employee_filter == item.id|stringformat:"s" %}selected{% endif %}>
+                        {{ item.employee_id }} &middot; {{ item.full_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label visually-hidden">Department</label>
+            <select name="department" class="form-select">
+                <option value="">All departments</option>
+                {% for item in department_choices %}
+                    <option value="{{ item.id }}" {% if department_filter == item.id|stringformat:"s" %}selected{% endif %}>
+                        {{ item.department_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a href="{% url 'attendance:exceptions' %}" class="btn btn-outline-secondary">Reset</a>
+        </div>
+    </form>
+
+    {% if can_view_verification_logs %}
+    <div class="row g-3 mt-4">
+        <div class="col-12">
+            <section class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h2 class="h5 mb-0">Verification logs (failed or inconclusive)</h2>
+                    <p class="text-body-secondary small mb-0">Face verification logs with a non-matched match result or a failed/inconclusive liveness result. No attendance record is created for these logs.</p>
+                </div>
+                <div class="card-body">
+                    {% if failed_verifications %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Device</th>
+                                        <th>Match</th>
+                                        <th>Liveness</th>
+                                        <th>Reason</th>
+                                        <th>Occurred</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in failed_verifications %}
+                                    <tr>
+                                        <td>{{ log.employee|default:"Unidentified" }}</td>
+                                        <td>{{ log.device }}</td>
+                                        <td>{{ log.get_match_result_display }}</td>
+                                        <td>{{ log.get_liveness_result_display }}</td>
+                                        <td>{{ log.failure_reason|default:"&mdash;" }}</td>
+                                        <td>{{ log.occurred_at }}</td>
+                                        <td><a href="{% url 'attendance:verification-detail' log.pk %}">Details</a></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-body-secondary mb-0">No failed or inconclusive verification logs in scope.</p>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if can_view_persistence_failures %}
+    <div class="row g-3 mt-4">
+        <div class="col-12">
+            <section class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h2 class="h5 mb-0">Attendance persistence failures</h2>
+                    <p class="text-body-secondary small mb-0">Diagnostic incidents recorded when saving a kiosk or mobile attendance event failed. Read-only diagnostics; no retry or recovery action is available from here.</p>
+                </div>
+                <div class="card-body">
+                    {% if persistence_failures %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Incident</th>
+                                        <th>Occurred</th>
+                                        <th>Employee</th>
+                                        <th>Schedule</th>
+                                        <th>Expected event</th>
+                                        <th>Channel</th>
+                                        <th>Stage</th>
+                                        <th>Exception type</th>
+                                        <th>Summary</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for failure in persistence_failures %}
+                                    <tr>
+                                        <td><code>{{ failure.incident_id }}</code></td>
+                                        <td>{{ failure.occurred_at }}</td>
+                                        <td>{{ failure.employee|default:"Unknown" }}</td>
+                                        <td>{% if failure.schedule %}{{ failure.schedule.work_date }}{% else %}Unknown{% endif %}</td>
+                                        <td>{{ failure.expected_event_type }}</td>
+                                        <td>{{ failure.get_channel_display }}</td>
+                                        <td>{{ failure.persistence_stage }}</td>
+                                        <td>{{ failure.exception_type }}</td>
+                                        <td>{{ failure.diagnostic_summary|default:"&mdash;" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-body-secondary mb-0">No attendance persistence failures are recorded in scope.</p>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}

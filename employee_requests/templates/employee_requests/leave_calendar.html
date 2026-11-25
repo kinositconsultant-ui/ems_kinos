@@ -1,0 +1,116 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'employee_requests:request-all' %}">Requests &amp; Approvals</a></li><li class="breadcrumb-item active">{{ page_title }}</li>{% endblock %}
+
+{% block content %}
+<section class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent border-0 pt-4 px-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <h1 class="h4 fw-semibold mb-1">Leave Calendar</h1>
+        <p class="text-body-secondary mb-1">This calendar shows leave approved and processed by HR. Pending requests and approvals awaiting HR processing are not shown.</p>
+        {% if scope %}<p class="small text-body-secondary mb-0">Authorized scope: {% if scope.kind == 'superuser' %}All authorized branches{% elif scope.office %}{{ scope.office.office_name }}{% endif %}{% if scope.department %} · {{ scope.department.department_name }}{% endif %}</p>{% endif %}
+      </div>
+      <div class="btn-group" role="group" aria-label="View">
+        <a class="btn btn-sm btn-outline-primary {% if view_mode == 'calendar' %}active{% endif %}" href="?year={{ year }}&month={{ month }}&view=calendar{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if selected_branch %}&branch={{ selected_branch }}{% endif %}">Calendar</a>
+        <a class="btn btn-sm btn-outline-primary {% if view_mode == 'list' %}active{% endif %}" href="?year={{ year }}&month={{ month }}&view=list{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if selected_branch %}&branch={{ selected_branch }}{% endif %}">List</a>
+      </div>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+      <a class="btn btn-outline-secondary btn-sm" href="?year={{ prev_year }}&month={{ prev_month }}&view={{ view_mode }}{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if selected_branch %}&branch={{ selected_branch }}{% endif %}">Previous month</a>
+      <a class="btn btn-outline-secondary btn-sm" href="?view={{ view_mode }}{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if selected_branch %}&branch={{ selected_branch }}{% endif %}">Today</a>
+      <a class="btn btn-outline-secondary btn-sm" href="?year={{ next_year }}&month={{ next_month }}&view={{ view_mode }}{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if selected_branch %}&branch={{ selected_branch }}{% endif %}">Next month</a>
+      <span class="fw-semibold ms-2">{{ month_label }}</span>
+    </div>
+    <form method="get" class="row g-2 align-items-end mt-2">
+      <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="view" value="{{ view_mode }}">
+      {% if show_branch_filter %}
+      <div class="col-12 col-md-3"><label class="form-label small" for="branch">Branch</label><select class="form-select form-select-sm" id="branch" name="branch"><option value="">All authorized</option>{% for o in offices %}<option value="{{ o.pk }}" {% if selected_branch == o.pk|stringformat:"s" %}selected{% endif %}>{{ o.office_name }}</option>{% endfor %}</select></div>
+      {% endif %}
+      <div class="col-12 col-md-3"><label class="form-label small" for="department">Department</label><select class="form-select form-select-sm" id="department" name="department"><option value="">All authorized</option>{% for d in departments %}<option value="{{ d.pk }}" {% if selected_department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.department_name }}</option>{% endfor %}</select></div>
+      <div class="col-12 col-md-3"><label class="form-label small" for="employee">Employee</label><select class="form-select form-select-sm" id="employee" name="employee"><option value="">All authorized</option>{% for e in employees_filter %}<option value="{{ e.id }}" {% if selected_employee == e.id|stringformat:"s" %}selected{% endif %}>{{ e.name }}</option>{% endfor %}</select></div>
+      <div class="col-auto"><button class="btn btn-sm btn-outline-primary" type="submit">Filter</button></div>
+    </form>
+  </div>
+  <div class="card-body px-4">
+    {% if scope_error %}
+      <div class="alert alert-warning" role="alert">{{ scope_error }}</div>
+    {% elif view_mode == 'list' %}
+      {% if events %}
+      <p class="small text-body-secondary">{{ total_count }} leave entr{{ total_count|pluralize:"y,ies" }} (limited information).</p>
+      <div class="table-responsive"><table class="table table-sm table-hover align-middle"><thead><tr><th>Employee</th><th>Department</th><th>Label</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead><tbody>
+      {% for ev in events %}
+        <tr><td>{{ ev.employee_name }}</td><td>{{ ev.department }}</td><td>{{ ev.label }}</td><td>{{ ev.start_date }}</td><td>{{ ev.end_date }}</td><td>{{ ev.duration }}</td><td><span class="badge text-bg-secondary">{{ ev.status }}</span></td></tr>
+      {% endfor %}
+      </tbody></table></div>
+      {% else %}
+      <div class="text-center border rounded-3 p-5"><i class="bi bi-calendar-x fs-2 text-body-secondary" aria-hidden="true"></i><h2 class="h6 mt-2">No approved and processed leave in this period</h2><p class="text-body-secondary mb-0">An empty date does not guarantee availability.</p></div>
+      {% endif %}
+    {% else %}
+      {% if not events %}<p class="small text-body-secondary mb-2">No approved and processed leave in this period. An empty date does not guarantee availability.</p>{% endif %}
+      <div class="table-responsive">
+        <table class="table table-bordered align-top mb-0" style="table-layout:fixed">
+          <thead><tr class="text-center small"><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
+          <tbody>
+          {% for week in weeks %}
+            <tr>
+            {% for cell in week %}
+              <td class="{% if not cell.in_month %}text-body-tertiary bg-body-tertiary{% endif %} {% if cell.is_today %}table-info{% endif %}" style="height:110px;vertical-align:top">
+                <div class="small fw-semibold {% if not cell.in_month %}text-body-tertiary{% endif %}">{{ cell.date.day }}</div>
+                {% for ev in cell.events %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start text-truncate mb-1 py-0 px-1 leave-ev"
+                    data-employee="{{ ev.employee_name|escape }}" data-department="{{ ev.department|escape }}" data-label="{{ ev.label|escape }}"
+                    data-start="{{ ev.start_date }}" data-end="{{ ev.end_date }}" data-duration="{{ ev.duration|escape }}"
+                    data-branch="{{ ev.branch|escape }}" data-status="{{ ev.status|escape }}"
+                    title="{{ ev.employee_name }} · {{ ev.department }}">{{ ev.employee_name }}</button>
+                {% endfor %}
+                {% if cell.more %}<div class="small text-body-secondary">+{{ cell.more }} more</div>{% endif %}
+              </td>
+            {% endfor %}
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<div class="modal fade" id="leaveEventModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h2 class="h6 modal-title mb-0">Leave details</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+    <div class="modal-body">
+      <dl class="row mb-0 small">
+        <dt class="col-4">Employee</dt><dd class="col-8" id="ev-employee"></dd>
+        <dt class="col-4">Department</dt><dd class="col-8" id="ev-department"></dd>
+        <dt class="col-4">Label</dt><dd class="col-8" id="ev-label"></dd>
+        <dt class="col-4">Start</dt><dd class="col-8" id="ev-start"></dd>
+        <dt class="col-4">End</dt><dd class="col-8" id="ev-end"></dd>
+        <dt class="col-4">Duration</dt><dd class="col-8" id="ev-duration"></dd>
+        <dt class="col-4">Branch</dt><dd class="col-8" id="ev-branch"></dd>
+        <dt class="col-4">Status</dt><dd class="col-8" id="ev-status"></dd>
+      </dl>
+    </div>
+  </div></div>
+</div>
+<script>
+(function(){
+  function setText(id, v){ var el=document.getElementById(id); if(el) el.textContent = v || ''; }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('.leave-ev') : null;
+    if(!btn) return;
+    setText('ev-employee', btn.getAttribute('data-employee'));
+    setText('ev-department', btn.getAttribute('data-department'));
+    setText('ev-label', btn.getAttribute('data-label'));
+    setText('ev-start', btn.getAttribute('data-start'));
+    setText('ev-end', btn.getAttribute('data-end'));
+    setText('ev-duration', btn.getAttribute('data-duration'));
+    setText('ev-branch', btn.getAttribute('data-branch'));
+    setText('ev-status', btn.getAttribute('data-status'));
+    if(window.bootstrap && bootstrap.Modal){ new bootstrap.Modal(document.getElementById('leaveEventModal')).show(); }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex flex-wrap justify-content-between gap-3">
+            <div><h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1><p class="text-body-secondary mb-0">{{ page_description }}</p></div>
+            {% if can_create %}<a class="btn btn-primary align-self-start" href="{{ create_url }}"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add new</a>{% endif %}
+        </div>
+        <div class="card-body px-4">
+            <form method="get" class="row g-2 align-items-end mb-4">
+                <div class="col-12 col-lg-3"><label class="form-label" for="search">Search</label><input class="form-control" id="search" name="q" value="{{ search_query }}" placeholder="Search records"></div>
+                {% for filter in filter_controls %}
+                    <div class="col-6 col-lg-2"><label class="form-label" for="filter-{{ filter.name }}">{{ filter.label }}</label><select class="form-select" id="filter-{{ filter.name }}" name="{{ filter.name }}"><option value="">All</option>{% for value, label in filter.choices %}<option value="{{ value }}" {% if filter.value == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                {% endfor %}
+                {% if show_date_filters %}
+                    <div class="col-6 col-lg-2"><label class="form-label" for="start-date">From</label><input class="form-control" id="start-date" name="start_date" type="date" value="{{ start_date }}"></div>
+                    <div class="col-6 col-lg-2"><label class="form-label" for="end-date">To</label><input class="form-control" id="end-date" name="end_date" type="date" value="{{ end_date }}"></div>
+                {% endif %}
+                <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Filter</button><a class="btn btn-outline-secondary" href="?">Reset</a></div>
+            </form>
+            <p class="small text-body-secondary">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</p>
+            {% if table_rows %}
+                <div class="table-responsive"><table class="table table-hover align-middle">
+                    <thead><tr>{% for label, field in columns %}<th scope="col">{{ label }}</th>{% endfor %}<th scope="col">Actions</th></tr></thead>
+                    <tbody>{% for row in table_rows %}<tr>{% for cell in row.cells %}{% if cell == True %}<td><span class="badge text-bg-success">Yes / Active</span></td>{% elif cell == False %}<td><span class="badge text-bg-secondary">No / Inactive</span></td>{% else %}<td>{{ cell|default:"—" }}</td>{% endif %}{% endfor %}<td class="text-nowrap"><a class="btn btn-sm btn-outline-primary" href="{{ row.url }}"><i class="bi bi-eye me-1" aria-hidden="true"></i>View</a>{% if row.edit_url %} <a class="btn btn-sm btn-outline-secondary" href="{{ row.edit_url }}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</a>{% endif %}{% for action in row.actions %}<a class="btn btn-sm btn-outline-danger" href="{{ action.url }}"><i class="bi {{ action.icon }} me-1" aria-hidden="true"></i>{{ action.label }}</a>{% endfor %}</td></tr>{% endfor %}</tbody>
+                </table></div>
+            {% else %}
+                <div class="text-center border rounded-3 p-5"><i class="bi bi-inbox fs-2 text-body-secondary" aria-hidden="true"></i><h2 class="h6 mt-2">No records found</h2><p class="text-body-secondary mb-0">There are no records matching the current filters.</p></div>
+            {% endif %}
+            {% if page_obj.paginator.num_pages > 1 %}
+                <nav aria-label="Pagination"><ul class="pagination justify-content-end mb-0">
+                    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?{{ querystring }}{% if querystring %}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}
+                    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?{{ querystring }}{% if querystring %}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}
+                </ul></nav>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

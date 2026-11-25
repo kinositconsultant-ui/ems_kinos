@@ -1,0 +1,99 @@
+{% extends "adminlte/page.html" %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <link rel="stylesheet" href="{% static 'employees/css/employee_form.css' %}">
+    <form method="post" enctype="multipart/form-data" id="employee-form" novalidate>{% csrf_token %}
+        {% if form.errors or cert_formset.has_any_errors %}
+            <div class="alert alert-danger py-2" role="alert">Please correct the highlighted fields.</div>
+        {% endif %}
+
+        <div class="accordion employee-form-accordion shadow-sm" id="employee-form-accordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-personal" aria-expanded="true">Personal Information</button>
+                </h2>
+                <div id="collapse-personal" class="accordion-collapse collapse show">
+                    <div class="accordion-body row g-2">
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.full_name %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.photo %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.preferred_name %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.gender %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.date_of_birth %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.place_of_birth %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.nationality %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.identity_type %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.identity_number %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.identity_expiry_date %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-contact">Contact &amp; Address</button></h2>
+                <div id="collapse-contact" class="accordion-collapse collapse">
+                    <div class="accordion-body row g-2">
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.personal_phone %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.personal_email %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.municipality %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.administrative_post %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.suco %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.aldeia %}</div>
+                        <div class="col-12">{% include "employees/_form_field.html" with field=form.residential_address %}</div>
+                        <div class="col-12">{% include "employees/_form_field.html" with field=form.permanent_address %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-family">Family &amp; Emergency Contact</button></h2>
+                <div id="collapse-family" class="accordion-collapse collapse">
+                    <div class="accordion-body row g-2">
+                        <div id="spouse-hidden-notice" class="alert alert-info py-2 small d-none" data-has-stored="{% if stored_spouse %}1{% else %}0{% endif %}">
+                            Spouse details are hidden unless marital status is Married. Saved spouse information is preserved.
+                        </div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.marital_status %}</div>
+                        <div class="col-12 col-md-6" data-conditional="spouse">{% include "employees/_form_field.html" with field=form.spouse_name %}</div>
+                        <div class="col-12 col-md-6" data-conditional="spouse">{% include "employees/_form_field.html" with field=form.spouse_phone %}</div>
+                        <div class="col-12 col-md-6" data-conditional="spouse">{% include "employees/_form_field.html" with field=form.spouse_email %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.emergency_contact_name %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.emergency_contact_relationship %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.emergency_contact_phone %}</div>
+                        <div class="col-12 col-md-6">{% include "employees/_form_field.html" with field=form.emergency_contact_alternative_phone %}</div>
+                        <div class="col-12">{% include "employees/_form_field.html" with field=form.emergency_contact_address %}</div>
+                        <div class="col-12">{% include "employees/_form_field.html" with field=form.emergency_contact_notes %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-education">Education &amp; Qualification</button></h2>
+                <div id="collapse-education" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        <div class="mb-2">{% include "employees/_form_field.html" with field=form.education_level %}</div>
+                        <div class="mb-2">{% include "employees/_form_field.html" with field=form.field_of_study %}</div>
+                        <div class="mb-2">{% include "employees/_form_field.html" with field=form.certifications %}</div>
+                        <hr>
+                        <h3 class="h6"><i class="bi bi-patch-check me-1"></i>Certificates &amp; qualification documents</h3>
+                        {{ cert_formset.management_form }}
+                        <div id="certificate-list" data-prefix="{{ cert_formset.prefix }}" data-max="25" data-max-bytes="10485760" data-allowed-ext=".pdf,.jpg,.jpeg,.png,.webp">
+                            {% for cform in cert_formset.forms %}{% include "employees/_certificate_form.html" with cert_perms=cert_perms %}{% endfor %}
+                        </div>
+                        <p id="certificate-empty" class="text-body-secondary small{% if cert_formset.forms %} d-none{% endif %}">No certificates recorded yet.</p>
+                        <button type="button" id="add-certificate" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg me-1"></i><span data-label>Add Certificate</span></button>
+                        <template id="certificate-empty-form">{% include "employees/_certificate_form.html" with cform=cert_formset.empty_form cert_perms=cert_perms %}</template>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <a class="btn btn-outline-secondary" href="{% url 'dashboard' %}">Cancel</a>
+            <button class="btn btn-primary" type="submit">Save profile</button>
+        </div>
+    </form>
+    <script src="{% static 'employees/js/employee_form.js' %}"></script>
+{% endblock %}

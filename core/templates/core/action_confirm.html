@@ -1,0 +1,28 @@
+{% extends "adminlte/page.html" %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{{ back_url }}">Back</a></li>
+    <li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4">
+            <h1 class="h4 fw-semibold mb-1">{{ page_title }}</h1>
+        </div>
+        <div class="card-body px-4">
+            <p>{{ prompt }}</p>
+            <p class="fw-semibold">{{ object_label }}</p>
+            <div class="alert alert-warning" role="alert">{{ warning }}</div>
+            <form method="post" class="d-flex flex-wrap gap-2">
+                {% csrf_token %}
+                <button class="btn btn-danger" type="submit">
+                    <i class="bi bi-trash me-1" aria-hidden="true"></i>{{ confirm_label }}
+                </button>
+                <a class="btn btn-outline-secondary" href="{{ back_url }}">Cancel</a>
+            </form>
+        </div>
+    </section>
+{% endblock %}
