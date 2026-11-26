@@ -4,11 +4,13 @@ This Django application manages a single institution with multiple offices and d
 
 ## Local development on Windows
 
-Use a separate checkout for a **new local database**. Run these commands from the directory containing `manage.py`. The current local environment was created with Python 3.14. Use an interpreter compatible with the packages in `requirements.txt`, and select the project's `.venv` in your IDE.
+Use a separate checkout for a **new local database**. Run these commands from the directory containing `manage.py`. The dependency baseline is 64-bit CPython 3.14 on Windows. Use that interpreter to create the project's `.venv` and select it in your IDE. Confirm which interpreter a launcher or scheduled job uses before relying on the installed packages.
 
 ```powershell
+python -VV
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip check
 Copy-Item .env.example .env
 ```
 
@@ -36,7 +38,7 @@ Liveness requires ONNX Runtime from `requirements.txt` and a separately provisio
 
 ## Production deployment
 
-The setup above uses the development server and local SQLite database. Production requires separate validation of settings, HTTPS, database and media storage, backups, scheduled jobs, model provenance, and face liveness before use.
+The setup above uses the development server and local SQLite database. Production requires separate validation of the target OS, architecture, Python wheels and system libraries, settings, HTTPS, database and media storage, backups, scheduled jobs, model provenance, and face liveness before use. A clean installation was verified on Windows x64 with CPython 3.14.8. Target hosting compatibility remains unverified.
 
 ## First setup order in Django Admin
 
@@ -63,9 +65,9 @@ The setup above uses the development server and local SQLite database. Productio
 - The Face Attendance Kiosk is available at `/attendance/kiosk/` (`attendance:kiosk`). A signed-in user needs attendance-view permissions and the required attendance mutation permissions; configure an active device, encrypted active face templates, the encryption key, a valid schedule, and an applicable attendance policy. The browser requests camera-only access over HTTPS or localhost, and sends a single temporary JPEG to the backend. YuNet/SFace matching determines the employee; the backend then records check-in or check-out against the matching schedule.
 - Liveness/anti-spoofing is **mandatory for all face attendance**. Every face-based attendance check-in or event accepted through the existing face-recognition flow must pass liveness/PAD verification before it is recorded as a successful face attendance event. This includes kiosk face attendance and mobile face attendance. The `require_liveness` field on the `AttendancePolicy` model is enforced at the runtime level: a policy's `require_liveness` value of `False` does not allow face attendance to bypass PAD. MiniFASNetV2 ONNX provider (`attendance/services/face_liveness.py`) runs a single-frame presentation-attack check that follows the upstream Silent-Face-Anti-Spoofing pipeline: raw BGR values in `[0, 255]`, the upstream boundary-adjusted shifted 2.7x crop resized to 80x80, a stable softmax over the raw logits, and acceptance only when class `1` (the bona-fide class) is the highest-scoring class. It is an additional gate, not a certification: the detection threshold is a provisional development value, `production_validated` is reported as `false`, and the result must be calibrated on representative live faces, printed photos, and screen replays before it is relied upon. An `inconclusive` or missing PAD result is treated as unverified — face attendance is rejected, not silently permitted. Attendance events are never recorded as system-created after face matching when liveness is required; verification history records the actual PAD outcome.
 - Today's Attendance and Attendance History show persisted attendance records through their schedule, assignment, employee, shift, and office relations. Today's Attendance supports date, office, employee, and attendance-status filters.
-- The attendance pages provide read-only daily, monthly, office, and employee reports. Each report supports date, office, employee, and status filters, and exports the filtered results as CSV.
+- The attendance pages provide read-only daily, monthly, office, and employee reports with date, office, employee, and status filters. The report view implements CSV and XLSX exports.
 - The audit page is permission-gated and read-only. Its interface does not display before/after snapshots; the `audittrail.services.log_action()` helper filters sensitive snapshot keys, and request approval decisions are recorded in the same transaction as the decision.
-- User accounts are listed and created in the custom account interface. Deactivation is available to superusers and preserves the User row and audit history; Django Admin deletion is disabled. Group management remains in Django Admin.
+- User accounts are listed and created in the custom account interface. Deactivation is available to superusers and preserves the User row and audit history; Django Admin deletion is disabled. Active Super Admins can create groups, rename groups, and assign or remove existing permissions through Users & Access → Groups & Permissions in the main application.
 - Approval steps must be assigned to approvers by a separately defined workflow. Request creation intentionally does not guess approvers or create approval steps automatically.
 
 ## Safe removal and retention
