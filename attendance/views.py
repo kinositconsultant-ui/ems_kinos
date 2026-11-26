@@ -26,7 +26,7 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError, IntegrityError, transaction
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Count, F, Prefetch, Q, Sum
 from django.db.models.deletion import ProtectedError
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -39,7 +39,12 @@ from django.views.generic import CreateView, DetailView, ListView, TemplateView,
 
 from audittrail.models import AuditLog
 from audittrail.services import log_action
-from core.permissions import offices_for_user, require_office_scoped_admin
+from core.permissions import (
+    can_manage_groups,
+    effective_primary_assignments,
+    offices_for_user,
+    require_office_scoped_admin,
+)
 from employee_requests.models import EmployeeRequest
 from employees.models import Employee, EmployeeAssignment
 from organization.models import Department, Office
@@ -1875,23 +1880,76 @@ class FaceTemplateRevokeView(AttendanceAccessMixin, View):
         return redirect("attendance:face-template-detail", pk=template.pk)
 
 
-class FaceEnrollmentChallengeView(AttendanceAccessMixin, View):
+class FaceEnrollmentAccessMixin(AttendanceAccessMixin):
+    def dispatch(self, request, *args, **kwargs):
+        if not can_manage_groups(request.user):
+            return self.handle_no_permission()
+        return super().dispatch(request, *args, **kwargs)
+
+
+def _enrollment_id(value, label):
+    if isinstance(value, str) and value.isascii() and value.isdecimal() and len(value) <= 19:
+        value = int(value)
+    if type(value) is not int or not 0 < value <= 2**63 - 1:
+        raise ValueError(f"Select a valid {label}.")
+    return value
+
+
+def _enrollment_device(value, *, lock=False):
+    device_id = _enrollment_id(value, "attendance device")
+    devices = AttendanceDevice.objects.select_related("office")
+    if lock:
+        devices = devices.select_for_update()
+    device = devices.filter(pk=device_id, status=AttendanceDevice.Status.ACTIVE).first()
+    if device is None:
+        raise ValueError("The selected attendance device does not exist or is no longer active.")
+    if not device.office.is_active:
+        raise ValueError("The selected attendance device is not associated with an active branch.")
+    return device
+
+
+def _enrollment_employees(device):
+    assignments = (
+        effective_primary_assignments().order_by().values("employee_id")
+        .annotate(total=Count("pk"), in_branch=Count("pk", filter=Q(position__office_id=device.office_id)))
+        .filter(total=1, in_branch=1)
+    )
+    return Employee.objects.filter(pk__in=assignments.values("employee_id"))
+
+
+def _validate_enrollment_pair(device_id, employee_id, *, office_id=None, lock=False):
+    device = _enrollment_device(device_id, lock=lock)
+    if office_id is not None and device.office_id != office_id:
+        raise ValueError("The attendance device changed branches. Start a new challenge.")
+    employees = _enrollment_employees(device)
+    if lock:
+        employees = employees.select_for_update()
+    if employees.only("pk").filter(pk=employee_id).first() is None:
+        raise ValueError("The employee must have one current primary assignment in this device's branch.")
+    return device
+
+
+class FaceEnrollmentChallengeView(FaceEnrollmentAccessMixin, View):
     permission_required = "attendance.add_facetemplate"
 
     def post(self, request):
         try:
             payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+            if not isinstance(payload, dict):
+                raise ValueError
         except (TypeError, ValueError):
             return JsonResponse({"ok": False, "error": "Malformed enrollment challenge request."}, status=400)
+        try:
+            employee_id = _enrollment_id(payload.get("employee_id"), "employee")
+            device = _validate_enrollment_pair(payload.get("device_id"), employee_id)
+        except ValueError as exc:
+            return JsonResponse({"ok": False, "error": str(exc)}, status=400)
 
-        employee_id = payload.get("employee_id")
-        if not employee_id:
-            return JsonResponse({"ok": False, "error": "Select an employee to enroll."}, status=400)
-
-        employee = get_object_or_404(Employee, pk=employee_id)
         challenge = {
             "id": uuid.uuid4().hex,
-            "employee_id": employee.pk,
+            "employee_id": employee_id,
+            "device_id": device.pk,
+            "office_id": device.office_id,
             "user_id": request.user.pk,
             "sequence": ["center", "left", "right"],
             "expires_at": (timezone.now() + timedelta(minutes=2)).isoformat(),
@@ -1904,7 +1962,8 @@ class FaceEnrollmentChallengeView(AttendanceAccessMixin, View):
             {
                 "ok": True,
                 "challenge_id": challenge["id"],
-                "employee_id": employee.pk,
+                "employee_id": employee_id,
+                "device_id": device.pk,
                 "sequence": challenge["sequence"],
                 "next_step": challenge["sequence"][0],
                 "expires_in_seconds": 120,
@@ -1913,7 +1972,7 @@ class FaceEnrollmentChallengeView(AttendanceAccessMixin, View):
         )
 
 
-class FaceEnrollmentSubmitView(AttendanceAccessMixin, View):
+class FaceEnrollmentSubmitView(FaceEnrollmentAccessMixin, View):
     permission_required = "attendance.add_facetemplate"
     max_request_size = 12 * 1024 * 1024
     max_capture_size = 4 * 1024 * 1024
@@ -1933,6 +1992,8 @@ class FaceEnrollmentSubmitView(AttendanceAccessMixin, View):
 
         try:
             payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+            if not isinstance(payload, dict):
+                raise ValueError
         except (TypeError, ValueError):
             return JsonResponse({"ok": False, "error": "Malformed enrollment payload."}, status=400)
 
@@ -1948,11 +2009,14 @@ class FaceEnrollmentSubmitView(AttendanceAccessMixin, View):
             return JsonResponse({"ok": False, "error": "The liveness challenge is missing or expired."}, status=400)
         challenge = dict(challenge)
         try:
-            employee_id = int(employee_id)
-        except (TypeError, ValueError):
-            return JsonResponse({"ok": False, "error": "The selected employee is invalid."}, status=400)
+            employee_id = _enrollment_id(employee_id, "employee")
+            device_id = _enrollment_id(payload.get("device_id"), "attendance device")
+        except ValueError as exc:
+            return JsonResponse({"ok": False, "error": str(exc)}, status=400)
         if challenge.get("employee_id") != employee_id:
             return JsonResponse({"ok": False, "error": "The challenge is for a different employee."}, status=400)
+        if challenge.get("device_id") != device_id:
+            return JsonResponse({"ok": False, "error": "The challenge is for a different attendance device."}, status=400)
         if challenge.get("user_id") != request.user.pk:
             return JsonResponse({"ok": False, "error": "The challenge belongs to a different signed-in user."}, status=400)
         if challenge.get("used"):
@@ -1982,6 +2046,7 @@ class FaceEnrollmentSubmitView(AttendanceAccessMixin, View):
             return JsonResponse({"ok": False, "error": "OpenCV and NumPy are required for face enrollment."}, status=400)
 
         try:
+            _validate_enrollment_pair(device_id, employee_id, office_id=challenge["office_id"])
             expected = expected_step
             data_url = capture.get("image")
             if not isinstance(data_url, str) or "," not in data_url:
@@ -2029,6 +2094,9 @@ class FaceEnrollmentSubmitView(AttendanceAccessMixin, View):
             if expected == "right":
                 embedding = build_enrollment_embedding(frame)
                 with transaction.atomic():
+                    device = _validate_enrollment_pair(
+                        device_id, employee_id, office_id=challenge["office_id"], lock=True
+                    )
                     FaceTemplate.objects.filter(employee_id=employee_id, status=FaceTemplate.Status.ACTIVE).update(
                         status=FaceTemplate.Status.REVOKED,
                         revoked_at=timezone.now(),
@@ -2043,20 +2111,23 @@ class FaceEnrollmentSubmitView(AttendanceAccessMixin, View):
                         enrolled_by=request.user,
                         status=FaceTemplate.Status.ACTIVE,
                     )
-                log_action(
-                    actor_user=request.user,
-                    office=None,
-                    action=AuditLog.Action.ENROLL_FACE,
-                    entity_type="FaceTemplate",
-                    object_id=template.pk,
-                    after_data={
-                        "employee_id": employee_id,
-                        "provider": template.provider,
-                        "model_version": template.model_version,
-                    },
-                    reason="Face template enrolled via liveness challenge.",
-                    ip_address=request.META.get("REMOTE_ADDR"),
-                )
+                    log_action(
+                        actor_user=request.user,
+                        office=device.office,
+                        action=AuditLog.Action.ENROLL_FACE,
+                        entity_type="FaceTemplate",
+                        object_id=template.pk,
+                        after_data={
+                            "employee_id": employee_id,
+                            "device_id": device.pk,
+                            "device_code": device.device_code,
+                            "office_id": device.office_id,
+                            "provider": template.provider,
+                            "model_version": template.model_version,
+                        },
+                        reason="Face template enrolled via liveness challenge.",
+                        ip_address=request.META.get("REMOTE_ADDR"),
+                    )
                 challenge["used"] = True
 
             request.session["face_enrollment_challenge"] = challenge
@@ -2078,7 +2149,7 @@ class FaceEnrollmentSubmitView(AttendanceAccessMixin, View):
             return JsonResponse({"ok": False, "accepted": False, "step": expected_step, "error": str(exc)}, status=400)
 
 
-class FaceEnrollmentView(AttendanceAccessMixin, TemplateView):
+class FaceEnrollmentView(FaceEnrollmentAccessMixin, TemplateView):
     template_name = "attendance/face_enrollment.html"
     permission_required = "attendance.view_facetemplate"
 
@@ -2092,9 +2163,20 @@ class FaceEnrollmentView(AttendanceAccessMixin, TemplateView):
         context["enrollment_disabled_reason"] = "" if context["liveness_available"] else (
             engine_status.get("error") or "No face-recognition provider or liveness engine is configured."
         )
-        context["employees"] = Employee.objects.prefetch_related("face_templates").order_by(
-            "employee_id"
-        )[:100]
+        context["devices"] = AttendanceDevice.objects.filter(
+            status=AttendanceDevice.Status.ACTIVE
+        ).select_related("office").defer("credential_hash")
+        device_id = self.request.GET.get("device_id")
+        if device_id:
+            try:
+                device = _enrollment_device(device_id)
+            except ValueError as exc:
+                context["device_error"] = str(exc)
+            else:
+                context["selected_device"] = device
+                context["employees"] = _enrollment_employees(device).order_by("employee_id").prefetch_related(
+                    Prefetch("face_templates", queryset=FaceTemplate.objects.defer("encrypted_template"))
+                )
         return context
 
 

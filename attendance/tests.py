@@ -6,7 +6,8 @@ from unittest.mock import patch
 import cv2
 import numpy as np
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.contrib.auth.models import Permission
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -368,10 +369,13 @@ class WorkSchedulePageTests(TestCase):
         return {"step": step, "image": image_data_url}
 
     def _set_enrollment_challenge(self, *, expires_at=None):
+        device = self._enrollment_test_device()
         session = self.client.session
         session["face_enrollment_challenge"] = {
             "id": "test-challenge",
             "employee_id": self.employee.pk,
+            "device_id": device.pk,
+            "office_id": device.office_id,
             "user_id": self.user.pk,
             "sequence": ["center", "left", "right"],
             "expires_at": (expires_at or timezone.now() + timedelta(minutes=2)).isoformat(),
@@ -381,11 +385,18 @@ class WorkSchedulePageTests(TestCase):
         session.save()
         self.challenge_id = "test-challenge"
 
+    def _enrollment_test_device(self):
+        device, _ = AttendanceDevice.objects.get_or_create(
+            device_code="DIL-ENROLL", defaults={"office": self.office, "device_name": "Dili enrollment"}
+        )
+        return device
+
+    def _post_enrollment_challenge(self, payload):
+        return self.client.post(reverse("attendance:face-enrollment-challenge"), payload, content_type="application/json")
+
     def _start_enrollment_challenge(self):
-        response = self.client.post(
-            reverse("attendance:face-enrollment-challenge"),
-            data=json.dumps({"employee_id": self.employee.pk}),
-            content_type="application/json",
+        response = self._post_enrollment_challenge(
+            {"employee_id": self.employee.pk, "device_id": self._enrollment_test_device().pk}
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["sequence"], ["center", "left", "right"])
@@ -397,11 +408,13 @@ class WorkSchedulePageTests(TestCase):
         self.assertTrue(success)
         return f"data:image/png;base64,{base64.b64encode(encoded.tobytes()).decode('ascii')}"
 
-    def _submit_capture(self, step, image_data_url):
+    def _submit_capture(self, step, image_data_url, **overrides):
         payload = {
+            "device_id": self._enrollment_test_device().pk,
             "employee_id": self.employee.pk,
             "challenge_id": self.challenge_id,
             "capture": self._face_capture(step, image_data_url),
+            **overrides,
         }
         return self.client.post(
             reverse("attendance:face-enrollment-submit"),
@@ -418,6 +431,9 @@ class WorkSchedulePageTests(TestCase):
         return {"bbox": (x, 60, 80, 80), "confidence": 0.91, "face_row": row}
 
     def test_face_enrollment_accepts_center_left_right_in_order_and_persists(self):
+        old_template = FaceTemplate.objects.create(
+            employee=self.employee, provider="test", model_version="test", encrypted_template=b"old"
+        )
         self._start_enrollment_challenge()
         images = {
             "center": self._encoded_test_image(20),
@@ -450,6 +466,185 @@ class WorkSchedulePageTests(TestCase):
         self.assertEqual([int(frame[0, 0, 0]) for frame in detected_frames], [20, 80, 140])
         template = FaceTemplate.objects.get(employee=self.employee, status=FaceTemplate.Status.ACTIVE)
         self.assertEqual(bytes(template.encrypted_template), b"encrypted-template")
+        old_template.refresh_from_db()
+        self.assertEqual(old_template.status, FaceTemplate.Status.REVOKED)
+        self.assertEqual(bytes(old_template.encrypted_template), b"old")
+        audit = AuditLog.objects.get(action=AuditLog.Action.ENROLL_FACE, object_id=str(template.pk))
+        device = self._enrollment_test_device()
+        self.assertEqual(audit.actor_user, self.user)
+        self.assertEqual(audit.office, device.office)
+        self.assertEqual(audit.after_data["device_id"], device.pk)
+        self.assertEqual(audit.after_data["device_code"], device.device_code)
+        self.assertEqual(audit.after_data["office_id"], device.office_id)
+        self.assertEqual(audit.after_data["employee_id"], self.employee.pk)
+
+    def test_enrollment_requires_active_superuser_on_all_routes(self):
+        user = get_user_model().objects.create_user(username="enrollment-permission-holder", is_staff=True)
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="attendance", codename__in=["view_facetemplate", "add_facetemplate"]
+        ))
+        device = self._enrollment_test_device()
+        requests = [
+            (self.client.get, "face-enrollment", {}),
+            (self.client.get, "face-enrollment", {"device_id": device.pk}),
+            (self.client.post, "face-enrollment-challenge", {}),
+            (self.client.post, "face-enrollment-submit", {}),
+        ]
+        inactive = get_user_model().objects.create_user(
+            username="inactive-enrollment-admin", is_staff=True, is_superuser=True, is_active=False
+        )
+        for account in (None, user, inactive):
+            self.client.logout()
+            if account:
+                self.client.force_login(account)
+            for method, route, data in requests:
+                with self.subTest(account=account, route=route, data=data):
+                    self.assertEqual(method(reverse(f"attendance:{route}"), data).status_code, 403)
+        self.assertFalse(FaceTemplate.objects.exists())
+
+    def test_enrollment_page_provides_csrf_token_for_challenge_and_capture(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.user)
+        page = reverse("attendance:face-enrollment")
+        challenge = reverse("attendance:face-enrollment-challenge")
+        submit = reverse("attendance:face-enrollment-submit")
+        device = self._enrollment_test_device()
+        payload = {"employee_id": self.employee.pk, "device_id": device.pk}
+        self.assertEqual(client.post(challenge, payload, content_type="application/json").status_code, 403)
+        with patch("attendance.views.get_face_model_status", return_value={"available": True}):
+            self.assertContains(client.get(page, {"device_id": device.pk}), "csrfmiddlewaretoken")
+        token = client.cookies["csrftoken"].value
+        response = client.post(challenge, payload, content_type="application/json", HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(client.post(submit, {}, content_type="application/json").status_code, 403)
+
+    def _baucau_device_and_position(self):
+        office = Office.objects.create(office_code="BAU", office_name="Baucau Office")
+        position = Position.objects.create(office=office, position_code="BAU-ADM", position_title="Administrator")
+        device = AttendanceDevice.objects.create(office=office, device_code="BAU-ENROLL", device_name="Baucau enrollment")
+        return device, position
+
+    @patch("attendance.views.get_face_model_status", return_value={"available": True})
+    def test_enrollment_renders_device_first_even_when_a_branch_has_no_employees(self, model_status):
+        baucau, _ = self._baucau_device_and_position()
+        dili = self._enrollment_test_device()
+        inactive = AttendanceDevice.objects.create(
+            office=self.office, device_code="DIL-INACTIVE", device_name="Inactive enrollment device",
+            status=AttendanceDevice.Status.INACTIVE,
+        )
+        page = reverse("attendance:face-enrollment")
+        unselected = self.client.get(page)
+        self.assertTemplateUsed(unselected, "attendance/face_enrollment.html")
+        self.assertContains(unselected, baucau.device_code)
+        self.assertContains(unselected, dili.device_code)
+        self.assertNotContains(unselected, inactive.device_code)
+        self.assertContains(unselected, "Select an attendance device first")
+        self.assertNotContains(unselected, "<th>Enrollment status</th>", html=True)
+        self.assertNotContains(unselected, self.employee.full_name)
+        for control in ("start-camera-btn", "start-challenge-btn", "capture-frame-btn"):
+            self.assertRegex(unselected.content.decode(), rf'<button\b[^>]*id="{control}"[^>]*\bdisabled\b')
+        self.assertRegex(unselected.content.decode(), r'<select\b[^>]*id="employee-select"[^>]*\bdisabled\b')
+
+        empty_branch = self.client.get(page, {"device_id": baucau.pk})
+        self.assertEqual(empty_branch.context["selected_device"], baucau)
+        self.assertContains(empty_branch, "No eligible employees")
+        self.assertNotContains(empty_branch, self.employee.full_name)
+        self.assertNotContains(empty_branch, "<th>Enrollment status</th>", html=True)
+
+        selected = self.client.get(page, {"device_id": dili.pk})
+        self.assertEqual(list(selected.context["employees"]), [self.employee])
+        self.assertContains(selected, self.employee.full_name, count=2)
+        self.assertContains(selected, "<th>Enrollment status</th>", html=True)
+        forged = self._post_enrollment_challenge({"device_id": baucau.pk, "employee_id": self.employee.pk})
+        self.assertEqual(forged.status_code, 400)
+        for invalid_id in (inactive.pk, "invalid"):
+            invalid = self.client.get(page, {"device_id": invalid_id})
+            self.assertIn("device_error", invalid.context)
+            self.assertNotContains(invalid, self.employee.full_name)
+            self.assertNotContains(invalid, "<th>Enrollment status</th>", html=True)
+
+    def test_enrollment_choices_and_challenge_follow_effective_transfer(self):
+        baucau, position = self._baucau_device_and_position()
+        dili = self._enrollment_test_device()
+        coworker = Employee.objects.create(employee_id="EMP-BAU", full_name="Baucau fixture", hire_date=date(2024, 1, 1))
+        EmployeeAssignment.objects.create(employee=coworker, position=position, start_date=date(2024, 1, 1))
+        today = timezone.localdate()
+        self.assignment.end_date = today
+        self.assignment.save(update_fields=["end_date"])
+        EmployeeAssignment.objects.create(employee=self.employee, position=position, start_date=today + timedelta(days=1))
+        page = reverse("attendance:face-enrollment")
+        response = self.client.get(page, {"device_id": baucau.pk})
+        self.assertEqual(list(response.context["employees"]), [coworker])
+        self.assertNotContains(response, self.employee.full_name)
+        pairing = {"employee_id": self.employee.pk, "device_id": baucau.pk}
+        self.assertEqual(self._post_enrollment_challenge(pairing).status_code, 400)
+        self.assertEqual(list(self.client.get(page, {"device_id": dili.pk}).context["employees"]), [self.employee])
+        with patch("core.permissions.timezone.localdate", return_value=today + timedelta(days=1)):
+            self.assertEqual(list(self.client.get(page, {"device_id": baucau.pk}).context["employees"]), [self.employee, coworker])
+            self.assertEqual(self._post_enrollment_challenge(pairing).status_code, 200)
+            self.assertFalse(self.client.get(page, {"device_id": dili.pk}).context["employees"])
+
+    def test_enrollment_rejects_invalid_device_and_assignment(self):
+        device = self._enrollment_test_device()
+        for device_id in (None, "bad", device.pk + 1):
+            self.assertEqual(self._post_enrollment_challenge({
+                "employee_id": self.employee.pk, "device_id": device_id,
+            }).status_code, 400)
+        for employee_id in (None, "bad", self.employee.pk + 1):
+            self.assertEqual(self._post_enrollment_challenge({
+                "employee_id": employee_id, "device_id": device.pk,
+            }).status_code, 400)
+        pairing = {"employee_id": self.employee.pk, "device_id": device.pk}
+        device.status = AttendanceDevice.Status.INACTIVE
+        device.save(update_fields=["status"])
+        self.assertEqual(self._post_enrollment_challenge(pairing).status_code, 400)
+        device.status = AttendanceDevice.Status.ACTIVE
+        device.save(update_fields=["status"])
+        _, position = self._baucau_device_and_position()
+        today = timezone.localdate()
+        EmployeeAssignment.objects.bulk_create([EmployeeAssignment(
+            employee=self.employee, position=position, start_date=today, end_date=today
+        )])
+        self.assertEqual(self._post_enrollment_challenge(pairing).status_code, 400)
+        self.assertFalse(self.client.get(reverse("attendance:face-enrollment"), {"device_id": device.pk}).context["employees"])
+        self.employee.assignments.all().delete()
+        self.assertEqual(self._post_enrollment_challenge(pairing).status_code, 400)
+        self.office.is_active = False
+        self.office.save(update_fields=["is_active"])
+        self.assertContains(self.client.get(reverse("attendance:face-enrollment"), {"device_id": device.pk}), "active branch")
+        self.assertFalse(FaceTemplate.objects.exists())
+
+    def test_enrollment_rejects_switching_device_mid_challenge(self):
+        self._start_enrollment_challenge()
+        other = AttendanceDevice.objects.create(office=self.office, device_code="DIL-OTHER", device_name="Other")
+        self.assertIn("different attendance device", self._submit_capture("center", "", device_id=other.pk).json()["error"])
+        self.assertIn("different employee", self._submit_capture("center", "", employee_id=self.employee.pk + 1).json()["error"])
+        self.assertEqual(self.client.session["face_enrollment_challenge"]["accepted_steps"], [])
+
+    def test_enrollment_rechecks_eligibility_at_final_save(self):
+        device = self._enrollment_test_device()
+        _, position = self._baucau_device_and_position()
+        for change in ("device", "assignment"):
+            with self.subTest(change=change):
+                self._start_enrollment_challenge()
+
+                def change_eligibility(frame):
+                    if change == "device":
+                        AttendanceDevice.objects.filter(pk=device.pk).update(status=AttendanceDevice.Status.INACTIVE)
+                    else:
+                        EmployeeAssignment.objects.filter(pk=self.assignment.pk).update(position=position)
+                    return np.array([0.1, 0.2], dtype=np.float32)
+
+                detections = [[self._face_detection(yaw)] for yaw in (0, -0.2, 0.2)]
+                with patch("attendance.views.FaceEngine.detect_faces", side_effect=detections), patch(
+                    "attendance.views.build_enrollment_embedding", side_effect=change_eligibility
+                ):
+                    for step in ("center", "left"):
+                        self.assertEqual(self._submit_capture(step, self._encoded_test_image()).status_code, 200)
+                    self.assertEqual(self._submit_capture("right", self._encoded_test_image()).status_code, 400)
+                self.assertFalse(FaceTemplate.objects.exists())
+                self.assertFalse(AuditLog.objects.filter(action=AuditLog.Action.ENROLL_FACE).exists())
+                AttendanceDevice.objects.filter(pk=device.pk).update(status=AttendanceDevice.Status.ACTIVE)
 
     def test_rejected_left_frame_does_not_advance_and_retry_uses_new_frame(self):
         self._start_enrollment_challenge()

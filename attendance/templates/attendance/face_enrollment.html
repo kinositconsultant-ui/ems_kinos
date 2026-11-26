@@ -31,18 +31,44 @@
                 <div class="alert alert-danger small mb-3" role="status"><strong>Backend status:</strong> {{ engine_status.error }}</div>
             {% endif %}
 
-            {% if employees %}
+            <form id="device-form" method="get" action="{% url 'attendance:face-enrollment' %}" class="mb-3">
+                <label for="device-select" class="form-label">Attendance device</label>
+                <select id="device-select" name="device_id" class="form-select" required autocomplete="off"
+                        aria-describedby="device-help" {% if not devices %}disabled{% endif %}>
+                    <option value="">Select an attendance device</option>
+                    {% for device in devices %}
+                        <option value="{{ device.pk }}" {% if device.pk == selected_device.pk %}selected{% endif %}>
+                            {{ device.device_name }} ({{ device.device_code }}) &mdash; {{ device.office.office_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <noscript><button class="btn btn-secondary mt-2">Load employees</button></noscript>
+            </form>
+            <div id="enrollment-csrf" hidden>{% csrf_token %}</div>
+            <p id="device-help" class="small text-body-secondary" role="status">
+                {% if device_error %}
+                    {{ device_error }}
+                {% elif not devices %}
+                    No active attendance devices are registered.
+                {% elif not selected_device %}
+                    Select an attendance device first to load employees from its branch.
+                {% elif not employees %}
+                    No eligible employees have a current primary assignment in {{ selected_device.office.office_name }}.
+                {% endif %}
+            </p>
                 <div class="row g-4">
                     <div class="col-lg-6">
                         <div class="border rounded-3 p-3">
                             <label for="employee-select" class="form-label">Select employee</label>
-                            <select id="employee-select" class="form-select" {% if not engine_status.available %}disabled{% endif %}>
+                            <select id="employee-select" class="form-select" required autocomplete="off"
+                                    {% if not employees or not engine_status.available %}disabled{% endif %}>
+                                <option value="">Select an employee</option>
                                 {% for employee in employees %}
                                     <option value="{{ employee.pk }}">{{ employee.employee_id }} — {{ employee.full_name }}</option>
                                 {% endfor %}
                             </select>
                             <div class="d-flex gap-2 mt-3 flex-wrap">
-                                <button id="start-camera-btn" type="button" class="btn btn-primary" {% if not engine_status.available %}disabled{% endif %}>Start camera</button>
+                                <button id="start-camera-btn" type="button" class="btn btn-primary" disabled>Start camera</button>
                                 <button id="cancel-camera-btn" type="button" class="btn btn-outline-secondary">Cancel</button>
                             </div>
                             <div class="mt-3">
@@ -70,6 +96,7 @@
                             </div>
                         </div>
                     </div>
+                    {% if employees %}
                     <div class="col-lg-6">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle">
@@ -105,15 +132,8 @@
                             </table>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
-                <p class="small text-body-secondary mt-3 mb-0">Showing at most 100 employees. Use Employee List to find a specific employee.</p>
-            {% else %}
-                <div class="text-center border rounded-3 p-5">
-                    <i class="bi bi-person-bounding-box fs-2 text-body-secondary" aria-hidden="true"></i>
-                    <h2 class="h6 mt-2">No employees recorded</h2>
-                    <p class="small text-body-secondary mb-0">There are no employee records in the configured database, so there is no candidate list for enrollment in this deployment.</p>
-                </div>
-            {% endif %}
         </div>
     </section>
 {% endblock %}
@@ -121,6 +141,8 @@
 {% block extra_js %}
     {{ block.super }}
     <script>
+        const deviceForm = document.getElementById('device-form');
+        const deviceSelect = document.getElementById('device-select');
         const employeeSelect = document.getElementById('employee-select');
         const startCameraBtn = document.getElementById('start-camera-btn');
         const cancelCameraBtn = document.getElementById('cancel-camera-btn');
@@ -135,19 +157,15 @@
         let challenge = null;
         let capturedFrames = Object.create(null);
         let cameraRequestId = 0;
-        const cameraEnabled = startCameraBtn && !startCameraBtn.disabled;
+        const cameraEnabled = !employeeSelect.disabled;
+        const selectedDeviceId = '{{ selected_device.pk|default_if_none:""|escapejs }}';
 
         if (!startCameraBtn || !cancelCameraBtn || !startChallengeBtn || !captureFrameBtn ||
             !cameraStatus || !challengeMessage || !captureThumbnails || !video) {
             console.error('Face enrollment camera controls are missing from the page.');
         } else {
 
-            function getCookie(name) {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
-                return '';
-            }
+            const csrfToken = document.querySelector('#enrollment-csrf input').value;
 
             function setStatus(message, type = 'info') {
                 cameraStatus.textContent = message;
@@ -157,8 +175,8 @@
             function resetChallengeState() {
                 challenge = null;
                 capturedFrames = Object.create(null);
-                if (employeeSelect) employeeSelect.disabled = false;
-                startChallengeBtn.disabled = !stream;
+                employeeSelect.disabled = !cameraEnabled;
+                startChallengeBtn.disabled = !stream || !employeeSelect.value;
                 captureThumbnails.querySelectorAll('[data-capture-slot]').forEach((slot) => {
                     const existingImage = slot.querySelector('img');
                     if (existingImage) existingImage.remove();
@@ -177,7 +195,7 @@
                 }
                 video.srcObject = null;
                 video.style.display = 'none';
-                startCameraBtn.disabled = !cameraEnabled;
+                startCameraBtn.disabled = !cameraEnabled || !employeeSelect.value;
                 startChallengeBtn.disabled = true;
                 captureFrameBtn.disabled = true;
             }
@@ -232,7 +250,8 @@
                     video.srcObject = stream;
                     video.style.display = 'block';
                     await video.play();
-                    startChallengeBtn.disabled = false;
+                    if (requestId !== cameraRequestId) return;
+                    startChallengeBtn.disabled = !employeeSelect.value;
                     setStatus('Camera ready. Start the challenge to continue.', 'success');
                 } catch (error) {
                     if (requestId !== cameraRequestId) {
@@ -242,6 +261,23 @@
                     setStatus(cameraErrorMessage(error), 'error');
                 }
             }
+
+            deviceSelect.addEventListener('change', () => {
+                employeeSelect.value = '';
+                stopStream();
+                resetChallengeState();
+                employeeSelect.disabled = true;
+                if (deviceSelect.value) {
+                    deviceForm.requestSubmit();
+                } else {
+                    window.location.assign(deviceForm.action);
+                }
+            });
+
+            employeeSelect.addEventListener('change', () => {
+                resetChallengeState();
+                startCameraBtn.disabled = !cameraEnabled || !employeeSelect.value || Boolean(stream);
+            });
 
             cancelCameraBtn.addEventListener('click', () => {
                 stopStream();
@@ -255,15 +291,20 @@
                     setStatus('Choose an employee before starting the challenge.', 'error');
                     return;
                 }
+                deviceSelect.disabled = true;
+                employeeSelect.disabled = true;
+                cancelCameraBtn.disabled = true;
+                startChallengeBtn.disabled = true;
+                captureFrameBtn.disabled = true;
                 try {
                     const response = await fetch('{% url "attendance:face-enrollment-challenge" %}', {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken')
+                            'X-CSRFToken': csrfToken
                         },
-                        body: JSON.stringify({ employee_id: Number(employeeId) })
+                        body: JSON.stringify({ device_id: selectedDeviceId, employee_id: employeeId })
                     });
                     const data = await response.json();
                     if (!response.ok || !data.ok) {
@@ -271,12 +312,19 @@
                     }
                     resetChallengeState();
                     challenge = data;
+                    startChallengeBtn.disabled = true;
                     employeeSelect.disabled = true;
                     challengeMessage.textContent = 'Center your face in the preview, then capture the center step.';
                     captureFrameBtn.disabled = false;
                     setStatus('Challenge started. Capture each step; the server validates it before advancing.', 'success');
                 } catch (error) {
                     setStatus(error.message || 'Unable to start the liveness challenge.', 'error');
+                    employeeSelect.disabled = Boolean(challenge);
+                    captureFrameBtn.disabled = !challenge || !challenge.next_step;
+                    startChallengeBtn.disabled = false;
+                } finally {
+                    deviceSelect.disabled = false;
+                    cancelCameraBtn.disabled = false;
                 }
             });
 
@@ -308,10 +356,13 @@
                 }
                 captureFrameBtn.disabled = true;
                 startChallengeBtn.disabled = true;
+                deviceSelect.disabled = true;
+                cancelCameraBtn.disabled = true;
                 setStatus(`Validating the ${step} frame…`, 'info');
                 try {
                     const payload = {
-                        employee_id: Number(employeeSelect.value),
+                        device_id: selectedDeviceId,
+                        employee_id: employeeSelect.value,
                         challenge_id: challenge.challenge_id,
                         capture: { step, image }
                     };
@@ -320,7 +371,7 @@
                         credentials: 'same-origin',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken')
+                            'X-CSRFToken': csrfToken
                         },
                         body: JSON.stringify(payload)
                     });
@@ -367,12 +418,20 @@
                 } catch (error) {
                     setStatus(error.message || `The ${step} frame was rejected. Capture a new frame and retry.`, 'error');
                     captureFrameBtn.disabled = !challenge || !challenge.next_step;
-                    startChallengeBtn.disabled = !stream;
+                    startChallengeBtn.disabled = !stream || !employeeSelect.value;
+                } finally {
+                    if (!challenge || challenge.next_step) {
+                        deviceSelect.disabled = false;
+                        cancelCameraBtn.disabled = false;
+                    }
                 }
             });
 
             startCameraBtn.addEventListener('click', startCamera);
-            window.addEventListener('pagehide', stopStream, { once: true });
+            window.addEventListener('pagehide', stopStream);
+            window.addEventListener('pageshow', (event) => {
+                if (event.persisted) window.location.reload();
+            });
             window.addEventListener('beforeunload', stopStream, { once: true });
         }
     </script>

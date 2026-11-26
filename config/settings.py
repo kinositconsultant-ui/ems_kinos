@@ -226,7 +226,7 @@ ADMINLTE = {
                     'text': 'Face Enrollment',
                     'icon': 'bi bi-circle',
                     'route': 'attendance:face-enrollment',
-                    'can': 'attendance.view_facetemplate',
+                    'can': _menu_can_manage_groups,
                 },
                 {
                     'text': 'Verification History',

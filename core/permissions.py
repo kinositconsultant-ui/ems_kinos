@@ -105,21 +105,26 @@ STAFF_HR_GROUP = "Staff HR"
 IT_ADMIN_GROUP = "IT Admin"
 
 
-def current_primary_assignment(employee):
-    """Resolve exactly one currently valid primary assignment, or None."""
-    if employee is None:
-        return None
+def effective_primary_assignments():
     from employees.models import EmployeeAssignment
 
     today = timezone.localdate()
-    candidates = list(
+    return (
         EmployeeAssignment.objects.filter(
-            employee=employee,
             is_primary=True,
             start_date__lte=today,
         )
         .filter(Q(end_date__isnull=True) | Q(end_date__gte=today))
         .filter(Q(employee__contract_end_date__isnull=True) | Q(employee__contract_end_date__gte=today))
+    )
+
+
+def current_primary_assignment(employee):
+    """Resolve exactly one currently valid primary assignment, or None."""
+    if employee is None:
+        return None
+    candidates = list(
+        effective_primary_assignments().filter(employee=employee)
         .select_related("position__office", "position__department")
     )
     if len(candidates) != 1:
